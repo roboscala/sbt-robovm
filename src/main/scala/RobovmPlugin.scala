@@ -11,6 +11,14 @@ object RobovmPlugin extends Plugin {
   val distHome = SettingKey[File]("dist-home")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
+  val propertiesFile = SettingKey[Option[File]]("properties-file")
+  val configFile = SettingKey[Option[File]]("config-file")
+
+  val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
+  val iosSignIdentity = SettingKey[Option[String]]("ios-sign-identity")
+  val iosInfoPlist = SettingKey[Option[File]]("ios-info-plist")
+  val iosEntitlementsPlist = SettingKey[Option[File]]("ios-entitlements-plist")
+  val iosResourceRulesPlist = SettingKey[Option[File]]("ios-resource-rules-plist")
 
   val updateDist = TaskKey[Unit]("update-dist")
   val device = TaskKey[Unit]("device", "Start package on device after installation")

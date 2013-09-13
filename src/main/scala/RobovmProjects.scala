@@ -17,8 +17,33 @@ import org.robovm.compiler.target.ios.IOSTarget
 
 object RobovmProjects {
   object Standard {
-    def launchTask(arch: Arch, launcher: Config => Unit) = (executableName, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile, streams) map {
-      (n, f, np, cp, r, png, fr, mc, st) => {
+    private val build = TaskKey[BuildSettings]("_aux_build")
+    private val iosBuild = TaskKey[IosBuildSettings]("_aux_ios_build")
+
+    case class BuildSettings(
+      executableName: String,
+      propertiesFile: Option[File],
+      configFile: Option[File],
+      forceLinkClasses: Seq[String],
+      frameworks: Seq[String],
+      nativePath: File,
+      fullClasspath: Classpath,
+      unmanagedResources: Seq[File],
+      skipPngCrush: Boolean,
+      flattenResources: Boolean,
+      mainClass: Option[String]
+    )
+
+    case class IosBuildSettings(
+      sdkVersion: Option[String],
+      signIdentity: Option[String],
+      infoPlist: Option[File],
+      entitlementsPlist: Option[File],
+      resourceRulesPlist: Option[File]
+    )
+
+    def launchTask(arch: Arch, launcher: Config => Unit) = (build, iosBuild, streams) map {
+      (b, ios, st) => {
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = st.log.debug(s.format(o:_*))
           def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o:_*))
@@ -28,35 +53,75 @@ object RobovmProjects {
 
         val builder = new Config.Builder()
 
-        builder.mainClass(mc.getOrElse("Main"))
-          .executableName(n)
+        builder.mainClass(b.mainClass.getOrElse("Main"))
+          .executableName(b.executableName)
           .logger(robovmLogger)
           .skipInstall(true)
           .targetType(TargetType.ios)
           .os(OS.ios)
           .arch(arch)
 
-        f foreach { framework =>
+        b.propertiesFile map { file =>
+          st.log.debug("Including properties file: " + file.getAbsolutePath())
+          builder.addProperties(file)
+        }
+
+        b.configFile map { file =>
+          st.log.debug("Loading config file: " + file.getAbsolutePath())
+          builder.read(file)
+        }
+
+        b.forceLinkClasses foreach { pattern =>
+          st.log.debug("Including class pattern: " + pattern)
+          builder.addForceLinkClass(pattern)
+        }
+
+        b.frameworks foreach { framework =>
           st.log.debug("Including framework: " + framework)
           builder.addFramework(framework)
         }
 
-        np.listFiles foreach { lib =>
+        b.nativePath.listFiles foreach { lib =>
           st.log.debug("Including lib: " + lib)
           builder.addLib(lib.getPath())
         }
 
-        cp.map(i => i.data) foreach { file =>
+        b.fullClasspath.map(i => i.data) foreach { file =>
           st.log.debug("Including classpath item: " + file)
           builder.addClasspathEntry(file)
         }
 
-        r foreach { file =>
+        b.unmanagedResources foreach { file =>
           st.log.debug("Including resource: " + file)
           val resource = new Resource(file)
-            .skipPngCrush(png)
-            .flatten(fr)
+            .skipPngCrush(b.skipPngCrush)
+            .flatten(b.flattenResources)
           builder.addResource(resource)
+        }
+
+        ios.sdkVersion map { version =>
+          st.log.debug("Using explicit iOS SDK version: " + version)
+          builder.iosSdkVersion(version)
+        }
+
+        ios.signIdentity map { identity =>
+          st.log.debug("Using explicit iOS Signing identity: " + identity)
+          builder.iosSignIdentity(identity)
+        }
+
+        ios.infoPlist map { file =>
+          st.log.debug("Using Info.plist file: " + file.getAbsolutePath())
+          builder.iosInfoPList(file)
+        }
+
+        ios.entitlementsPlist map { file =>
+          st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath())
+          builder.iosEntitlementsPList(file)
+        }
+
+        ios.resourceRulesPlist map { file =>
+          st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath())
+          builder.iosResourceRulesPList(file)
         }
 
         st.log.info("Compiling RoboVM app, this could take a while")
@@ -104,11 +169,21 @@ object RobovmProjects {
         "org.robovm" % "robovm-cocoatouch" % "0.0.4",
         "org.robovm" % "robovm-cacerts-full" % "0.0.4"
       ),
-      executableName := "RobovmApp",
+      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile) map BuildSettings,
+      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
+      executableName := "RoboVM App",
+      forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
       nativePath <<= (baseDirectory) (_ / "lib"),
       skipPngCrush := false,
       flattenResources := false,
+      propertiesFile := None,
+      configFile := None,
+      iosSdkVersion := None,
+      iosSignIdentity := None,
+      iosInfoPlist := None,
+      iosEntitlementsPlist := None,
+      iosResourceRulesPlist := None,
       distHome <<= (baseDirectory) (_ / "target" / "robovm"),
       device <<= deviceTask dependsOn (compile in Compile),
       iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
