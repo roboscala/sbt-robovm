@@ -10,14 +10,15 @@ import org.robovm.compiler.config.Arch
 import org.robovm.compiler.config.Config
 import org.robovm.compiler.config.Config.TargetType
 import org.robovm.compiler.config.OS
+import org.robovm.compiler.config.Resource
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios.IOSSimulatorLaunchParameters
 import org.robovm.compiler.target.ios.IOSTarget
 
 object RobovmProjects {
   object Standard {
-    def launchTask(arch: Arch, launcher: Config => Unit) = (executableName, frameworks, nativePath, fullClasspath in Compile, mainClass in run in Compile, streams) map {
-      (n, f, np, cp, mc, st) => {
+    def launchTask(arch: Arch, launcher: Config => Unit) = (executableName, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile, streams) map {
+      (n, f, np, cp, r, png, fr, mc, st) => {
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = st.log.debug(s.format(o:_*))
           def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o:_*))
@@ -35,14 +36,35 @@ object RobovmProjects {
           .os(OS.ios)
           .arch(arch)
 
-        f foreach { framework => builder.addFramework(framework) }
-        np.listFiles foreach { lib => builder.addLib(lib.getPath()) }
-        cp.map(i => i.data) foreach { file => builder.addClasspathEntry(file) }
+        f foreach { framework =>
+          st.log.debug("Including framework: " + framework)
+          builder.addFramework(framework)
+        }
 
+        np.listFiles foreach { lib =>
+          st.log.debug("Including lib: " + lib)
+          builder.addLib(lib.getPath())
+        }
+
+        cp.map(i => i.data) foreach { file =>
+          st.log.debug("Including classpath item: " + file)
+          builder.addClasspathEntry(file)
+        }
+
+        r foreach { file =>
+          st.log.debug("Including resource: " + file)
+          val resource = new Resource(file)
+            .skipPngCrush(png)
+            .flatten(fr)
+          builder.addResource(resource)
+        }
+
+        st.log.info("Compiling RoboVM app, this could take a while")
         val config = builder.build()
         val compiler = new AppCompiler(config)
         compiler.compile()
 
+        st.log.info("Launching RoboVM app")
         launcher(config)
       }
     }
@@ -69,6 +91,12 @@ object RobovmProjects {
       //config.getTarget().asInstanceOf[IOSTarget].createIpa()
     })
 
+    private val updateDistTask = (distHome) map {
+      (home) => {
+        // Download and unpack the robovm dist into home
+      }
+    }
+
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
         "org.robovm" % "robovm-rt" % "0.0.4",
@@ -79,10 +107,14 @@ object RobovmProjects {
       executableName := "RobovmApp",
       frameworks := Seq.empty,
       nativePath <<= (baseDirectory) (_ / "lib"),
+      skipPngCrush := false,
+      flattenResources := false,
+      distHome <<= (baseDirectory) (_ / "target" / "robovm"),
       device <<= deviceTask dependsOn (compile in Compile),
       iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
       ipadSim <<= ipadSimTask dependsOn (compile in Compile),
-      ipa <<= ipaTask dependsOn (compile in Compile)
+      ipa <<= ipaTask dependsOn (compile in Compile),
+      updateDist <<= updateDistTask
     )
 
     def apply(
