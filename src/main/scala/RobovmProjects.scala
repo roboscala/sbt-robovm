@@ -31,7 +31,8 @@ object RobovmProjects {
       unmanagedResources: Seq[File],
       skipPngCrush: Boolean,
       flattenResources: Boolean,
-      mainClass: Option[String]
+      mainClass: Option[String],
+      distHome: Option[File]
     )
 
     case class IosBuildSettings(
@@ -60,6 +61,10 @@ object RobovmProjects {
           .targetType(TargetType.ios)
           .os(OS.ios)
           .arch(arch)
+
+        b.distHome map { file =>
+          builder.home(new Config.Home(file))
+        }
 
         b.propertiesFile map { file =>
           st.log.debug("Including properties file: " + file.getAbsolutePath())
@@ -156,12 +161,6 @@ object RobovmProjects {
       //config.getTarget().asInstanceOf[IOSTarget].createIpa()
     })
 
-    private val updateDistTask = (distHome) map {
-      (home) => {
-        // Download and unpack the robovm dist into home
-      }
-    }
-
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
         "org.robovm" % "robovm-rt" % "0.0.4",
@@ -169,7 +168,7 @@ object RobovmProjects {
         "org.robovm" % "robovm-cocoatouch" % "0.0.4",
         "org.robovm" % "robovm-cacerts-full" % "0.0.4"
       ),
-      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile) map BuildSettings,
+      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile, distHome) map BuildSettings,
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
@@ -179,17 +178,16 @@ object RobovmProjects {
       flattenResources := false,
       propertiesFile := None,
       configFile := None,
+      distHome := None,
       iosSdkVersion := None,
       iosSignIdentity := None,
       iosInfoPlist := None,
       iosEntitlementsPlist := None,
       iosResourceRulesPlist := None,
-      distHome <<= (baseDirectory) (_ / "target" / "robovm"),
       device <<= deviceTask dependsOn (compile in Compile),
       iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
       ipadSim <<= ipadSimTask dependsOn (compile in Compile),
-      ipa <<= ipaTask dependsOn (compile in Compile),
-      updateDist <<= updateDistTask
+      ipa <<= ipaTask dependsOn (compile in Compile)
     )
 
     def apply(
