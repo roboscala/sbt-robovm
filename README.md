@@ -7,9 +7,9 @@ sbt-robovm is an extension for the Scala build tool which aims to make it as sim
 
 If you've setup your 'ios' project to use RobovmProject:
 
-   $ sbt ios/device
-   $ sbt ios/iphone-sim
-   $ sbt ios/ipad-sim
+    $ sbt ios/device
+    $ sbt ios/iphone-sim
+    $ sbt ios/ipad-sim
 
 ## Hacking on the plugin
 
