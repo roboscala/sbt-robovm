@@ -9,15 +9,13 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warn
 publishMavenStyle := false
 
 publishTo <<= (version) { version: String =>
-  val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
+  val scalasbt = "http://repo.scala-sbt.org/scalasbt/"
   val (name, url) = if (version.contains("-"))
     ("sbt-plugin-snapshots", scalasbt+"sbt-plugin-snapshots")
   else
     ("sbt-plugin-releases", scalasbt+"sbt-plugin-releases")
   Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
 }
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 libraryDependencies += "org.robovm" % "robovm-compiler" % "0.0.4"
 
