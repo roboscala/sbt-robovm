@@ -26,7 +26,7 @@ object RobovmProjects {
       configFile: Option[File],
       forceLinkClasses: Seq[String],
       frameworks: Seq[String],
-      nativePath: File,
+      nativePath: Seq[File],
       fullClasspath: Classpath,
       unmanagedResources: Seq[File],
       skipPngCrush: Boolean,
@@ -86,9 +86,11 @@ object RobovmProjects {
           builder.addFramework(framework)
         }
 
-        b.nativePath.listFiles foreach { lib =>
-          st.log.debug("Including lib: " + lib)
-          builder.addLib(lib.getPath())
+        for (dir <- b.nativePath if dir.isDirectory) {
+          dir.listFiles foreach { lib =>
+              st.log.debug("Including lib: " + lib)
+              builder.addLib(lib.getPath())
+          }
         }
 
         b.fullClasspath.map(i => i.data) foreach { file =>
@@ -173,7 +175,7 @@ object RobovmProjects {
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
-      nativePath <<= (baseDirectory) (_ / "lib"),
+      nativePath := Seq.empty,
       skipPngCrush := false,
       flattenResources := false,
       propertiesFile := None,

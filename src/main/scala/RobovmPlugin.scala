@@ -7,7 +7,7 @@ object RobovmPlugin extends Plugin {
   val executableName = SettingKey[String]("executable-name")
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
   val frameworks = SettingKey[Seq[String]]("frameworks")
-  val nativePath = SettingKey[File]("native-path")
+  val nativePath = SettingKey[Seq[File]]("native-path")
   val distHome = SettingKey[Option[File]]("dist-home")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
