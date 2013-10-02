@@ -14,6 +14,7 @@ import org.robovm.compiler.config.Resource
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios.IOSSimulatorLaunchParameters
 import org.robovm.compiler.target.ios.IOSTarget
+import org.robovm.compiler.target.ios.SigningIdentity
 
 object RobovmProjects {
   object Standard {
@@ -43,8 +44,8 @@ object RobovmProjects {
       resourceRulesPlist: Option[File]
     )
 
-    def launchTask(arch: Arch, launcher: Config => Unit) = (build, iosBuild, streams) map {
-      (b, ios, st) => {
+    def launchTask(arch: Arch, launcher: Config => Unit) = (target, build, iosBuild, streams) map {
+      (t, b, ios, st) => {
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = st.log.debug(s.format(o:_*))
           def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o:_*))
@@ -113,7 +114,7 @@ object RobovmProjects {
 
         ios.signIdentity map { identity =>
           st.log.debug("Using explicit iOS Signing identity: " + identity)
-          builder.iosSignIdentity(identity)
+          builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
         }
 
         ios.infoPlist map { file =>
@@ -130,6 +131,8 @@ object RobovmProjects {
           st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath())
           builder.iosResourceRulesPList(file)
         }
+
+        builder.installDir(t)
 
         st.log.info("Compiling RoboVM app, this could take a while")
         val config = builder.build()
@@ -159,18 +162,17 @@ object RobovmProjects {
     })
 
     private val ipaTask = launchTask(Arch.thumbv7, (config) => {
-      // TODO: Add after robovm 0.0.5
-      //config.getTarget().asInstanceOf[IOSTarget].createIpa()
+      config.getTarget().asInstanceOf[IOSTarget].createIpa()
     })
 
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
-        "org.robovm" % "robovm-rt" % "0.0.4",
-        "org.robovm" % "robovm-objc" % "0.0.4",
-        "org.robovm" % "robovm-cocoatouch" % "0.0.4",
-        "org.robovm" % "robovm-cacerts-full" % "0.0.4"
+        "org.robovm" % "robovm-rt" % "0.0.5",
+        "org.robovm" % "robovm-objc" % "0.0.5",
+        "org.robovm" % "robovm-cocoatouch" % "0.0.5",
+        "org.robovm" % "robovm-cacerts-full" % "0.0.5"
       ),
-      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in run in Compile, distHome) map BuildSettings,
+      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in (Compile, run), distHome) map BuildSettings,
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
