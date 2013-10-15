@@ -12,6 +12,10 @@ If you've setup your 'ios' project to use RobovmProject:
     $ sbt ios/ipad-sim
     $ sbt ios/ipa
 
+## Notes
+
+The first time you try to compile a program, robovm has to compile the java and scala libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
+
 ## Hacking on the plugin
 
 If you need make modifications to the plugin itself, you can compile
