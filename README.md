@@ -5,18 +5,17 @@ sbt-robovm is an extension for the Scala build tool that aims to make it as simp
 
 ## Setup
 
-1. Get a computer running Mac OS X
-2. Install Xcode (tested with 4.6.3 and 5.0)
-3. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
-4. Download and extract [robovm-0.0.5.tar.gz](http://download.robovm.org/robovm-0.0.5.tar.gz) to one of these places:
+1. Install Xcode (tested with 4.6.3 and 5.0)
+2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
+3. Download and extract [robovm-0.0.5.tar.gz](http://download.robovm.org/robovm-0.0.5.tar.gz) to one of these places:
  * $ROBOVM_HOME
  * ~/Applications/robovm/
  * ~/.robovm/home/
  * /usr/local/lib/robovm/
  * /opt/robovm/
  * /usr/lib/robovm/
-5. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-6. See [github.com/ajhager/scala-ios-demos](http://github.com/ajhager/scala-ios-demos) and [hagerbot.com/scala-on-ios](http://hagerbot.com/scala-on-ios/) for project creation and configuration
+4. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
+5. See [github.com/ajhager/scala-ios-demos](http://github.com/ajhager/scala-ios-demos) and [hagerbot.com/scala-on-ios](http://hagerbot.com/scala-on-ios/) for project creation and configuration
 
 ## Usage
 
