@@ -5,13 +5,36 @@ sbt-robovm is an extension for the Scala build tool that aims to make it as simp
 
 ## Setup
 
-Edit your plugins.sbt to include:
+1. Get a computer running Mac OS X
+2. Install Xcode (tested with 4.6.3 and 5.0)
+3. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
+4. Download and extract [robovm-0.0.5.tar.gz](http://download.robovm.org/robovm-0.0.5.tar.gz) ($ROBOVM_HOME, ~/Applications/robovm/, ~/.robovm/home/, /usr/local/lib/robovm/, /opt/robovm/, or /usr/lib/robovm/)
+5. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
+6. Edit your plugins.sbt to include:
 
     resolvers += Resolver.url("scalasbt snapshots", new URL("http://repo.scala-sbt.org/scalasbt/sbt-plugin-snapshots"))(Resolver.ivyStylePatterns)
 
     addSbtPlugin("com.hagerbot" % "sbt-robovm" % "0.1.0-SNAPSHOT")
 
-And then create an sbt project using RobovmProject.
+7. Create an sbt project using RobovmProject:
+
+    import sbt._
+    import Keys._
+
+    import sbtrobovm.RobovmPlugin._
+
+    object ScaliOSBuild extends Build {
+      lazy val hello = makeDemo("hello", "Hello Robo")
+
+      def makeDemo(path: String, name: String, settings: Seq[Setting[_]] = Seq.empty): Project = {
+        RobovmProject(path, file(path),
+          settings = Defaults.defaultSettings ++ settings ++ Seq(
+            scalaVersion := "2.10.3",
+            executableName := name
+          )
+        )
+      }
+    }
 
 ## Basic usage
 
