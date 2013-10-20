@@ -21,7 +21,7 @@ sbt-robovm is an extension for the Scala build tool that aims to make it as simp
 
 5. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
 
-6. See [scala-ios-demos](http://github.com/ajhager/scala-ios-demos) for an example of setting up a new project
+6. See [scala-ios-demos](http://github.com/ajhager/scala-ios-demos) for project creation and configuration
 
 ## Usage
 
