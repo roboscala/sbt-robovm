@@ -36,9 +36,7 @@ If you've setup your 'ios' project to use RobovmProject:
 
 The first time you try to compile a program, RoboVM must compile the Java and Scala standard libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
 
-If you are having issues after install Xcode 5, run the following command and agree to Apple's new license:
-
-    xcrun -sdk iphoneos -f clang
+If you are having issues after installing Xcode 5.0, open Xcode and agree to the license or open a Terminal and run xcrun.
 
 ## Hacking on the plugin
 
