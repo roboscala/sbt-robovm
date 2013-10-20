@@ -26,11 +26,12 @@ sbt-robovm is an extension for the Scala build tool that aims to make it as simp
 ## Usage
 
 If you've setup your 'ios' project to use RobovmProject:
-
-    $ sbt ios/device
-    $ sbt ios/iphone-sim
-    $ sbt ios/ipad-sim
-    $ sbt ios/ipa
+```bash
+$ sbt ios/device
+$ sbt ios/iphone-sim
+$ sbt ios/ipad-sim
+$ sbt ios/ipa
+```
 
 ## Notes
 
@@ -41,10 +42,11 @@ If you are having issues after installing Xcode 5.0, open Xcode and agree to the
 ## Hacking on the plugin
 
 If you need to make modifications to the plugin itself, you can compile and install it locally:
-
-    $ git clone git://github.com/ajhager/sbt-robovm.git
-    $ cd sbt-robovm
-    $ sbt publish-local
+```bash
+$ git clone git://github.com/ajhager/sbt-robovm.git
+$ cd sbt-robovm
+$ sbt publish-local
+```
 
 ## Projects using the plugin
 
