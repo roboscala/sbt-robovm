@@ -16,6 +16,7 @@ object RobovmPlugin extends Plugin {
 
   val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
   val iosSignIdentity = SettingKey[Option[String]]("ios-sign-identity")
+  val iosProvisioningProfile = SettingKey[Option[String]]("ios-provisioning-profile")
   val iosInfoPlist = SettingKey[Option[File]]("ios-info-plist")
   val iosEntitlementsPlist = SettingKey[Option[File]]("ios-entitlements-plist")
   val iosResourceRulesPlist = SettingKey[Option[File]]("ios-resource-rules-plist")

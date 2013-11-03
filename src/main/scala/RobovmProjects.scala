@@ -15,6 +15,7 @@ import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios.IOSSimulatorLaunchParameters
 import org.robovm.compiler.target.ios.IOSTarget
 import org.robovm.compiler.target.ios.SigningIdentity
+import org.robovm.compiler.target.ios.ProvisioningProfile
 
 object RobovmProjects {
   object Standard {
@@ -39,6 +40,7 @@ object RobovmProjects {
     case class IosBuildSettings(
       sdkVersion: Option[String],
       signIdentity: Option[String],
+      provisioningProfile: Option[String],
       infoPlist: Option[File],
       entitlementsPlist: Option[File],
       resourceRulesPlist: Option[File]
@@ -117,6 +119,11 @@ object RobovmProjects {
           builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
         }
 
+        ios.provisioningProfile map { profile =>
+          st.log.debug("Using explicit iOS provisioning profile: " + profile)
+          builder.iosProvisioningProfile(ProvisioningProfile.find(ProvisioningProfile.list(), profile))
+        }
+
         ios.infoPlist map { file =>
           st.log.debug("Using Info.plist file: " + file.getAbsolutePath())
           builder.iosInfoPList(file)
@@ -167,13 +174,13 @@ object RobovmProjects {
 
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
-        "org.robovm" % "robovm-rt" % "0.0.5",
-        "org.robovm" % "robovm-objc" % "0.0.5",
-        "org.robovm" % "robovm-cocoatouch" % "0.0.5",
-        "org.robovm" % "robovm-cacerts-full" % "0.0.5"
+        "org.robovm" % "robovm-rt" % "0.0.6",
+        "org.robovm" % "robovm-objc" % "0.0.6",
+        "org.robovm" % "robovm-cocoatouch" % "0.0.6",
+        "org.robovm" % "robovm-cacerts-full" % "0.0.6"
       ),
       build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in (Compile, run), distHome) map BuildSettings,
-      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
+      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
@@ -185,6 +192,7 @@ object RobovmProjects {
       distHome := None,
       iosSdkVersion := None,
       iosSignIdentity := None,
+      iosProvisioningProfile := None,
       iosInfoPlist := None,
       iosEntitlementsPlist := None,
       iosResourceRulesPlist := None,
