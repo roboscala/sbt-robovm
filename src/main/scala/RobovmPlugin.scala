@@ -26,5 +26,7 @@ object RobovmPlugin extends Plugin {
   val ipadSim = TaskKey[Unit]("ipad-sim", "Start package on ipad simulator")
   val ipa = TaskKey[Unit]("ipa", "Create an ipa file for the app store")
 
+  val native = TaskKey[Unit]("native", "Run as native console application")
+
   val RobovmProject = RobovmProjects.Standard
 }

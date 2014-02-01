@@ -46,7 +46,7 @@ object RobovmProjects {
       resourceRulesPlist: Option[File]
     )
 
-    def launchTask(arch: Arch, launcher: Config => Unit) = (target, build, iosBuild, streams) map {
+    def launchTask(arch: Arch, os: OS, targetType: TargetType, launcher: Config => Unit) = (target, build, iosBuild, streams) map {
       (t, b, ios, st) => {
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = st.log.debug(s.format(o:_*))
@@ -61,8 +61,8 @@ object RobovmProjects {
           .executableName(b.executableName)
           .logger(robovmLogger)
           .skipInstall(true)
-          .targetType(TargetType.ios)
-          .os(OS.ios)
+          .targetType(targetType)
+          .os(os)
           .arch(arch)
 
         b.distHome map { file =>
@@ -140,6 +140,7 @@ object RobovmProjects {
         }
 
         builder.installDir(t)
+        builder.tmpDir(t / "native")
 
         st.log.info("Compiling RoboVM app, this could take a while")
         val config = builder.build()
@@ -151,24 +152,29 @@ object RobovmProjects {
       }
     }
 
-    private val deviceTask = launchTask(Arch.thumbv7, (config) => {
+    private val nativeTask = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, (config) => {
+      val launchParameters = config.getTarget().createLaunchParameters()
+      config.getTarget().launch(launchParameters).waitFor()
+    })
+
+    private val deviceTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters()
         config.getTarget().launch(launchParameters).waitFor()
     })
 
-    private val iphoneSimTask = launchTask(Arch.x86, (config) => {
+    private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iphone)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
-    private val ipadSimTask = launchTask(Arch.x86, (config) => {
+    private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.ipad)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
-    private val ipaTask = launchTask(Arch.thumbv7, (config) => {
+    private val ipaTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, (config) => {
       config.getTarget().asInstanceOf[IOSTarget].createIpa()
     })
 
@@ -199,7 +205,8 @@ object RobovmProjects {
       device <<= deviceTask dependsOn (compile in Compile),
       iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
       ipadSim <<= ipadSimTask dependsOn (compile in Compile),
-      ipa <<= ipaTask dependsOn (compile in Compile)
+      ipa <<= ipaTask dependsOn (compile in Compile),
+      native <<= nativeTask dependsOn (compile in Compile)
     )
 
     def apply(
