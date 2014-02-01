@@ -1,7 +1,7 @@
 sbt-robovm
 ==========
 
-sbt-robovm is an extension for the Scala build tool that aims to make it as simple as possible to get started with Scala on iOS using [RoboVM](http://www.robovm.org/) (version 0.0.8)
+sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 0.0.8)
 
 ## Setup
 
@@ -25,6 +25,11 @@ $ sbt ios/device
 $ sbt ios/iphone-sim
 $ sbt ios/ipad-sim
 $ sbt ios/ipa
+```
+
+If you are using the plugin to build a native desktop project:
+```bash
+$ sbt project-name/native
 ```
 
 ## Notes
