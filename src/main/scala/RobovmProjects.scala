@@ -180,10 +180,10 @@ object RobovmProjects {
 
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
-        "org.robovm" % "robovm-rt" % "0.0.9",
-        "org.robovm" % "robovm-objc" % "0.0.9",
-        "org.robovm" % "robovm-cocoatouch" % "0.0.9",
-        "org.robovm" % "robovm-cacerts-full" % "0.0.9"
+        "org.robovm" % "robovm-rt" % "0.0.10",
+        "org.robovm" % "robovm-objc" % "0.0.10",
+        "org.robovm" % "robovm-cocoatouch" % "0.0.10",
+        "org.robovm" % "robovm-cacerts-full" % "0.0.10"
       ),
       build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in (Compile, run), distHome) map BuildSettings,
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
