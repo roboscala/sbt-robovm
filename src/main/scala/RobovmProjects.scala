@@ -185,7 +185,7 @@ object RobovmProjects {
         "org.robovm" % "robovm-cocoatouch" % "0.0.9",
         "org.robovm" % "robovm-cacerts-full" % "0.0.9"
       ),
-      build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in (Compile, run), distHome) map BuildSettings,
+      build := BuildSettings(executableName.value, propertiesFile.value, configFile.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, (unmanagedResources in Compile).value, skipPngCrush.value, flattenResources.value, (mainClass in (Compile, run)).value, distHome.value),
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
@@ -215,7 +215,7 @@ object RobovmProjects {
       aggregate: => Seq[ProjectReference] = Nil,
       dependencies: => Seq[ClasspathDep[ProjectReference]] = Nil,
       delegates: => Seq[ProjectReference] = Nil,
-      settings: => Seq[sbt.Project.Setting[_]] = Seq.empty,
+      settings: => Seq[Def.Setting[_]] = Seq.empty,
       configurations: Seq[Configuration] = Configurations.default
     ) = Project(
       id,
