@@ -92,7 +92,7 @@ object RobovmProjects {
         for (dir <- b.nativePath if dir.isDirectory) {
           dir.listFiles foreach { lib =>
               st.log.debug("Including lib: " + lib)
-              builder.addLib(lib.getPath())
+              builder.addLib(new Config.Lib(lib.getName, true))
           }
         }
 
@@ -164,13 +164,13 @@ object RobovmProjects {
 
     private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iphone)
+        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPhoneRetina4Inch)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
     private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.ipad)
+        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPadRetina)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
@@ -180,10 +180,10 @@ object RobovmProjects {
 
     lazy val robovmSettings = Seq(
       libraryDependencies ++= Seq(
-        "org.robovm" % "robovm-rt" % "0.0.9",
-        "org.robovm" % "robovm-objc" % "0.0.9",
-        "org.robovm" % "robovm-cocoatouch" % "0.0.9",
-        "org.robovm" % "robovm-cacerts-full" % "0.0.9"
+        "org.robovm" % "robovm-rt" % "0.0.10",
+        "org.robovm" % "robovm-objc" % "0.0.10",
+        "org.robovm" % "robovm-cocoatouch" % "0.0.10",
+        "org.robovm" % "robovm-cacerts-full" % "0.0.10"
       ),
       build <<= (executableName, propertiesFile, configFile, forceLinkClasses, frameworks, nativePath, fullClasspath in Compile, unmanagedResources in Compile, skipPngCrush, flattenResources, mainClass in (Compile, run), distHome) map BuildSettings,
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
