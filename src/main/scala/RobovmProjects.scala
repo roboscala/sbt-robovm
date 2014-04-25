@@ -92,7 +92,7 @@ object RobovmProjects {
         for (dir <- b.nativePath if dir.isDirectory) {
           dir.listFiles foreach { lib =>
               st.log.debug("Including lib: " + lib)
-              builder.addLib(lib.getPath())
+              builder.addLib(new Config.Lib(lib.getName, true))
           }
         }
 
@@ -164,13 +164,13 @@ object RobovmProjects {
 
     private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iphone)
+        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPhoneRetina4Inch)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
     private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
         val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.ipad)
+        launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPadRetina)
         config.getTarget().launch(launchParameters).waitFor()
     })
 
