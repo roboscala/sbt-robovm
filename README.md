@@ -1,13 +1,13 @@
 sbt-robovm
 ==========
 
-sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 0.0.11)
+sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 0.0.13)
 
 ## Setup
 
 1. Install Xcode (tested with 4.6.3 and 5.1)
 2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
-3. Download and extract [robovm-0.0.11.tar.gz](http://download.robovm.org/robovm-0.0.11.tar.gz) to one of these places:
+3. Download and extract [robovm-0.0.13.tar.gz](http://download.robovm.org/robovm-0.0.13.tar.gz) to one of these places:
  * $ROBOVM_HOME
  * ~/Applications/robovm/
  * ~/.robovm/home/
