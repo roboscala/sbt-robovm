@@ -17,6 +17,12 @@ publishTo <<= (version) { version: String =>
   Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
 }
 
+<<<<<<< HEAD
 libraryDependencies += "org.robovm" % "robovm-compiler" % "0.0.13"
+=======
+libraryDependencies += "org.robovm" % "robovm-compiler" % "0.0.12"
+
+sbtPlugin := true
+>>>>>>> roboscala/master
 
 sbtPlugin := true
