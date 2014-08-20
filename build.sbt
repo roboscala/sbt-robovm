@@ -2,7 +2,9 @@ name := "sbt-robovm"
 
 organization := "com.hagerbot"
 
-version := "0.0.14-SNAPSHOT"
+val roboVersion = "0.0.14"
+
+version := roboVersion + "-SNAPSHOT"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings")
 
@@ -17,14 +19,6 @@ publishTo <<= (version) { version: String =>
   Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
 }
 
-libraryDependencies += "org.robovm" % "robovm-compiler" % version.value.replace("-SNAPSHOT","")
-
-libraryDependencies += "org.robovm" % "robovm-rt" % version.value.replace("-SNAPSHOT","")
-
-libraryDependencies += "org.robovm" % "robovm-objc" % version.value.replace("-SNAPSHOT","")
-
-libraryDependencies += "org.robovm" % "robovm-cocoatouch" % version.value.replace("-SNAPSHOT","")
-
-libraryDependencies += "org.robovm" % "robovm-cacerts-full" % version.value.replace("-SNAPSHOT","")
+libraryDependencies ++= List("robovm-compiler", "robovm-rt", "robovm-objc", "robovm-cocoatouch", "robovm-cacerts-full").map("org.robovm" % _ % roboVersion)
 
 sbtPlugin := true
