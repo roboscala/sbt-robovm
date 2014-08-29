@@ -10,12 +10,6 @@ import sbt.Keys._
 import sbt._
 import sbtrobovm.RobovmPlugin._
 
-/**
- * Private property.
- * User: Darkyen
- * Date: 12/08/14
- * Time: 15:53
- */
 object RobovmProjects {
   object Standard {
     private val build = TaskKey[BuildSettings]("_aux_build")

@@ -2,12 +2,6 @@ package sbtrobovm
 
 import sbt._
 
-/**
- * Private property.
- * User: Darkyen
- * Date: 12/08/14
- * Time: 15:52
- */
 object RobovmPlugin extends Plugin {
   val executableName = SettingKey[String]("executable-name")
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
