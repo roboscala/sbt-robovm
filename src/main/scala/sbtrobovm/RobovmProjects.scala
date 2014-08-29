@@ -66,10 +66,6 @@ object RobovmProjects {
         builder.mainClass(b.mainClass.getOrElse("Main"))
           .executableName(b.executableName)
           .logger(robovmLogger)
-          .skipInstall(skipInstall)
-          .targetType(targetType)
-          .os(os)
-          .arch(arch)
 
         b.distHome map { file =>
           builder.home(new Config.Home(file))
@@ -171,6 +167,12 @@ object RobovmProjects {
         }
 
         b.skipSigning foreach builder.iosSkipSigning
+
+        //To make sure that options were not overrided, that would not work.
+        builder.skipInstall(skipInstall)
+          .targetType(targetType)
+          .os(os)
+          .arch(arch)
 
         builder.installDir(t)
         builder.tmpDir(t / "native")
