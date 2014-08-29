@@ -11,11 +11,11 @@ object RobovmPlugin extends Plugin {
   val robovmResources = TaskKey[Seq[File]]("robovm-resources")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
-  val robovmProperties = SettingKey[Option[Either[File, Map[String, String]]]]("robovm-properties")
-  val configFile = SettingKey[Option[File]]("config-file")
-  val skipSigning = SettingKey[Option[Boolean]]("skip-signing")
+  val robovmProperties = SettingKey[Option[Either[File, Map[String, String]]]]("robovm-properties","Values that might be used in config-file substitutions")
+  val configFile = SettingKey[Option[File]]("config-file","Path to xml with robovm configuration")
+  val skipSigning = SettingKey[Option[Boolean]]("skip-signing","Whether to override signing behavior")
 
-  val alternativeInputJars = TaskKey[Option[Seq[File]]]("alternative-input-jars")
+  val alternativeInputJars = TaskKey[Option[Seq[File]]]("alternative-input-jars","Jars used instead of fullClasspath when Some")
 
   val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
   val iosSignIdentity = SettingKey[Option[String]]("ios-sign-identity")
@@ -31,7 +31,7 @@ object RobovmPlugin extends Plugin {
 
   val native = TaskKey[Unit]("native", "Run as native console application")
 
-  val robovmDebug = SettingKey[Boolean]("robovm-debug")
+  val robovmDebug = SettingKey[Boolean]("robovm-debug","Propagates robovm Debug messages to Info level, to be visible")
 
   val RobovmProject = RobovmProjects.Standard
 }
