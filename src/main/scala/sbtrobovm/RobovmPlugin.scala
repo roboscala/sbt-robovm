@@ -8,7 +8,7 @@ object RobovmPlugin extends Plugin {
   val frameworks = SettingKey[Seq[String]]("frameworks")
   val nativePath = SettingKey[Seq[File]]("native-path")
   val distHome = SettingKey[Option[File]]("dist-home")
-  val robovmResources = SettingKey[Seq[File]]("robovm-resources")
+  val robovmResources = TaskKey[Seq[File]]("robovm-resources")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
   val robovmProperties = SettingKey[Option[Either[File, Map[String, String]]]]("robovm-properties")
