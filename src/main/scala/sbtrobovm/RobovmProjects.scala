@@ -1,22 +1,21 @@
 package sbtrobovm
 
-import sbt._
-import Keys._
-import Defaults._
-import RobovmPlugin._
-
 import org.robovm.compiler.AppCompiler
-import org.robovm.compiler.config.Arch
-import org.robovm.compiler.config.Config
 import org.robovm.compiler.config.Config.TargetType
-import org.robovm.compiler.config.OS
-import org.robovm.compiler.config.Resource
+import org.robovm.compiler.config.{Arch, Config, OS, Resource}
 import org.robovm.compiler.log.Logger
-import org.robovm.compiler.target.ios.IOSSimulatorLaunchParameters
-import org.robovm.compiler.target.ios.IOSTarget
-import org.robovm.compiler.target.ios.SigningIdentity
-import org.robovm.compiler.target.ios.ProvisioningProfile
+import org.robovm.compiler.target.ios.{IOSSimulatorLaunchParameters, IOSTarget, ProvisioningProfile, SigningIdentity}
+import sbt.Defaults._
+import sbt.Keys._
+import sbt._
+import sbtrobovm.RobovmPlugin._
 
+/**
+ * Private property.
+ * User: Darkyen
+ * Date: 12/08/14
+ * Time: 15:53
+ */
 object RobovmProjects {
   object Standard {
     private val build = TaskKey[BuildSettings]("_aux_build")
@@ -24,8 +23,9 @@ object RobovmProjects {
 
     case class BuildSettings(
       executableName: String,
-      propertiesFile: Option[File],
+      properties: Option[Either[File,Map[String,String]]],
       configFile: Option[File],
+      skipSigning: Option[Boolean],
       forceLinkClasses: Seq[String],
       frameworks: Seq[String],
       nativePath: Seq[File],
@@ -34,7 +34,9 @@ object RobovmProjects {
       skipPngCrush: Boolean,
       flattenResources: Boolean,
       mainClass: Option[String],
-      distHome: Option[File]
+      distHome: Option[File],
+      alternativeJars: Option[Seq[File]],
+      debug:Boolean
     )
 
     case class IosBuildSettings(
@@ -49,7 +51,13 @@ object RobovmProjects {
     def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean, launcher: Config => Unit) = (target, build, iosBuild, streams) map {
       (t, b, ios, st) => {
         val robovmLogger = new Logger() {
-          def debug(s: String, o: java.lang.Object*) = st.log.debug(s.format(o:_*))
+          def debug(s: String, o: java.lang.Object*) = {
+            if(b.debug){
+              st.log.info(s.format(o:_*))
+            }else{
+              st.log.debug(s.format(o: _*))
+            }
+          }
           def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o:_*))
           def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o:_*))
           def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o:_*))
@@ -69,13 +77,20 @@ object RobovmProjects {
           builder.home(new Config.Home(file))
         }
 
-        b.propertiesFile map { file =>
-          st.log.debug("Including properties file: " + file.getAbsolutePath())
-          builder.addProperties(file)
+        b.properties match {
+          case Some(Left(file)) =>
+            st.log.debug("Including properties file: " + file.getAbsolutePath)
+            builder.addProperties(file)
+          case Some(Right(map)) =>
+            st.log.debug("Including properties: " + map)
+            for((key,value) <- map){
+              builder.addProperty(key,value)
+            }
+          case _ =>
         }
 
         b.configFile map { file =>
-          st.log.debug("Loading config file: " + file.getAbsolutePath())
+          st.log.debug("Loading config file: " + file.getAbsolutePath)
           builder.read(file)
         }
 
@@ -89,16 +104,34 @@ object RobovmProjects {
           builder.addFramework(framework)
         }
 
-        for (dir <- b.nativePath if dir.isDirectory) {
-          dir.listFiles foreach { lib =>
-              st.log.debug("Including lib: " + lib)
-              builder.addLib(new Config.Lib(lib.getName, true))
+        val homeDir = file(".").getCanonicalPath.stripSuffix("/") + "/"
+        for (dir <- b.nativePath) {
+          if(dir.isDirectory){
+            dir.listFiles foreach { lib =>
+              if(lib.isFile && !lib.isHidden){
+                val libRelativePath = lib.getCanonicalPath.stripPrefix(homeDir)
+
+                st.log.debug("Including lib: " + libRelativePath)
+
+                builder.addLib(new Config.Lib(libRelativePath, true))
+              }
+            }
+          }else{
+            st.log.warn(s"Natives directory '${dir.getAbsolutePath}' doesn't exist.")
           }
         }
 
-        b.fullClasspath.map(i => i.data) foreach { file =>
-          st.log.debug("Including classpath item: " + file)
-          builder.addClasspathEntry(file)
+        b.alternativeJars match {
+          case Some(alternativeFiles:Seq[File]) =>
+            alternativeFiles foreach { file =>
+              st.log.debug("Including alternative classpath item: " + file)
+              builder.addClasspathEntry(file)
+            }
+          case None =>
+            b.fullClasspath.map(i => i.data) foreach { file =>
+              st.log.debug("Including classpath item: " + file)
+              builder.addClasspathEntry(file)
+            }
         }
 
         b.unmanagedResources foreach { file =>
@@ -125,19 +158,21 @@ object RobovmProjects {
         }
 
         ios.infoPlist map { file =>
-          st.log.debug("Using Info.plist file: " + file.getAbsolutePath())
+          st.log.debug("Using Info.plist file: " + file.getAbsolutePath)
           builder.iosInfoPList(file)
         }
 
         ios.entitlementsPlist map { file =>
-          st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath())
+          st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath)
           builder.iosEntitlementsPList(file)
         }
 
         ios.resourceRulesPlist map { file =>
-          st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath())
+          st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath)
           builder.iosResourceRulesPList(file)
         }
+
+        b.skipSigning foreach builder.iosSkipSigning
 
         builder.installDir(t)
         builder.tmpDir(t / "native")
@@ -152,34 +187,34 @@ object RobovmProjects {
       }
     }
 
-    private val nativeTask = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, true, (config) => {
-      val launchParameters = config.getTarget().createLaunchParameters()
-      config.getTarget().launch(launchParameters).waitFor()
+    private val nativeTask = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true, (config) => {
+      val launchParameters = config.getTarget.createLaunchParameters()
+      config.getTarget.launch(launchParameters).waitFor()
     })
 
-    private val deviceTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, true, (config) => {
-        val launchParameters = config.getTarget().createLaunchParameters()
-        config.getTarget().launch(launchParameters).waitFor()
+    private val deviceTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true, (config) => {
+        val launchParameters = config.getTarget.createLaunchParameters()
+        config.getTarget.launch(launchParameters).waitFor()
     })
 
-    private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
-        val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+    private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
+        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPhoneRetina4Inch)
-        config.getTarget().launch(launchParameters).waitFor()
+        config.getTarget.launch(launchParameters).waitFor()
     })
 
-    private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, true, (config) => {
-        val launchParameters = config.getTarget().createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+    private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
+        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPadRetina)
-        config.getTarget().launch(launchParameters).waitFor()
+        config.getTarget.launch(launchParameters).waitFor()
     })
 
-    private val ipaTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, false, (config) => {
-      config.getTarget().asInstanceOf[IOSTarget].createIpa()
+    private val ipaTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false, (config) => {
+      config.getTarget.asInstanceOf[IOSTarget].createIpa()
     })
 
     lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, propertiesFile.value, configFile.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, (unmanagedResources in Compile).value, skipPngCrush.value, flattenResources.value, (mainClass in (Compile, run)).value, distHome.value),
+      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value,skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, (unmanagedResources in Compile).value, skipPngCrush.value, flattenResources.value, (mainClass in (Compile, run)).value, distHome.value, alternativeInputJars.value,robovmDebug.value),
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
@@ -187,9 +222,11 @@ object RobovmProjects {
       nativePath := Seq.empty,
       skipPngCrush := false,
       flattenResources := false,
-      propertiesFile := None,
+      robovmProperties := None,
       configFile := None,
+      skipSigning := None,
       distHome := None,
+      alternativeInputJars := None,
       iosSdkVersion := None,
       iosSignIdentity := None,
       iosProvisioningProfile := None,
@@ -200,7 +237,8 @@ object RobovmProjects {
       iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
       ipadSim <<= ipadSimTask dependsOn (compile in Compile),
       ipa <<= ipaTask dependsOn (compile in Compile),
-      native <<= nativeTask dependsOn (compile in Compile)
+      native <<= nativeTask dependsOn (compile in Compile),
+      robovmDebug := false
     )
 
     def apply(
@@ -217,7 +255,7 @@ object RobovmProjects {
       aggregate,
       dependencies,
       delegates,
-      defaultSettings ++ robovmSettings ++ settings,
+      coreDefaultSettings ++ robovmSettings ++ settings,
       configurations
     )
   }

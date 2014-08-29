@@ -1,8 +1,13 @@
 package sbtrobovm
 
 import sbt._
-import Keys._
 
+/**
+ * Private property.
+ * User: Darkyen
+ * Date: 12/08/14
+ * Time: 15:52
+ */
 object RobovmPlugin extends Plugin {
   val executableName = SettingKey[String]("executable-name")
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
@@ -11,8 +16,11 @@ object RobovmPlugin extends Plugin {
   val distHome = SettingKey[Option[File]]("dist-home")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
-  val propertiesFile = SettingKey[Option[File]]("properties-file")
+  val robovmProperties = SettingKey[Option[Either[File,Map[String,String]]]]("robovm-properties")
   val configFile = SettingKey[Option[File]]("config-file")
+  val skipSigning = SettingKey[Option[Boolean]]("skip-signing")
+
+  val alternativeInputJars = TaskKey[Option[Seq[File]]]("alternative-input-jars")
 
   val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
   val iosSignIdentity = SettingKey[Option[String]]("ios-sign-identity")
@@ -27,6 +35,8 @@ object RobovmPlugin extends Plugin {
   val ipa = TaskKey[Unit]("ipa", "Create an ipa file for the app store")
 
   val native = TaskKey[Unit]("native", "Run as native console application")
+
+  val robovmDebug = SettingKey[Boolean]("robovm-debug")
 
   val RobovmProject = RobovmProjects.Standard
 }
