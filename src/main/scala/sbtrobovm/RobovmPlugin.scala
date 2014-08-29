@@ -10,7 +10,7 @@ object RobovmPlugin extends Plugin {
   val distHome = SettingKey[Option[File]]("dist-home")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
-  val robovmProperties = SettingKey[Option[Either[File,Map[String,String]]]]("robovm-properties")
+  val robovmProperties = SettingKey[Option[Either[File, Map[String, String]]]]("robovm-properties")
   val configFile = SettingKey[Option[File]]("config-file")
   val skipSigning = SettingKey[Option[Boolean]]("skip-signing")
 
