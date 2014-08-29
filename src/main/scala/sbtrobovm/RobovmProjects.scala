@@ -214,12 +214,13 @@ object RobovmProjects {
     })
 
     lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, (unmanagedResources in Compile).value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
+      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
       nativePath := Seq.empty,
+      robovmResources := (unmanagedResources in Compile).value,
       skipPngCrush := false,
       flattenResources := false,
       robovmProperties := None,
