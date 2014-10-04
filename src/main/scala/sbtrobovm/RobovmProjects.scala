@@ -4,7 +4,7 @@ import org.robovm.compiler.AppCompiler
 import org.robovm.compiler.config.Config.TargetType
 import org.robovm.compiler.config.{Arch, Config, OS, Resource}
 import org.robovm.compiler.log.Logger
-import org.robovm.compiler.target.ios.{IOSSimulatorLaunchParameters, IOSTarget, ProvisioningProfile, SigningIdentity}
+import org.robovm.compiler.target.ios._
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
@@ -199,13 +199,13 @@ object RobovmProjects {
 
     private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
       val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-      launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPhoneRetina4Inch)
+      launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome,DeviceType.DeviceFamily.iPhone))
       config.getTarget.launch(launchParameters).waitFor()
     })
 
     private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
       val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-      launchParameters.setFamily(IOSSimulatorLaunchParameters.Family.iPadRetina)
+      launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome,DeviceType.DeviceFamily.iPad))
       config.getTarget.launch(launchParameters).waitFor()
     })
 
