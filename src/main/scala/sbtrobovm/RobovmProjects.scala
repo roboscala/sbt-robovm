@@ -1,7 +1,7 @@
 package sbtrobovm
 
 import org.robovm.compiler.AppCompiler
-import org.robovm.compiler.config.Config.TargetType
+import org.robovm.compiler.config.Config.{Home, TargetType}
 import org.robovm.compiler.config.{Arch, Config, OS, Resource}
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios._
@@ -43,8 +43,14 @@ object RobovmProjects {
                                  resourceRulesPlist: Option[File]
                                  )
 
-    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean, launcher: Config => Unit) = (target, build, iosBuild, streams) map {
-      (t, b, ios, st) => {
+    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = {
+      Def.task[Config] {
+        (compile in Compile).value
+        val t = target.value
+        val b = build.value
+        val ios = iosBuild.value
+        val st = streams.value
+
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = {
             if (b.debug) {
@@ -182,36 +188,10 @@ object RobovmProjects {
         val compiler = new AppCompiler(config)
         compiler.compile()
 
-        st.log.info("Launching RoboVM app")
-        launcher(config)
+        st.log.info("RoboVM app compiled")
+        config
       }
     }
-
-    private val nativeTask = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true, (config) => {
-      val launchParameters = config.getTarget.createLaunchParameters()
-      config.getTarget.launch(launchParameters).waitFor()
-    })
-
-    private val deviceTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true, (config) => {
-      val launchParameters = config.getTarget.createLaunchParameters()
-      config.getTarget.launch(launchParameters).waitFor()
-    })
-
-    private val iphoneSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
-      val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-      launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome,DeviceType.DeviceFamily.iPhone))
-      config.getTarget.launch(launchParameters).waitFor()
-    })
-
-    private val ipadSimTask = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true, (config) => {
-      val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-      launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome,DeviceType.DeviceFamily.iPad))
-      config.getTarget.launch(launchParameters).waitFor()
-    })
-
-    private val ipaTask = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false, (config) => {
-      config.getTarget.asInstanceOf[IOSTarget].createIpa()
-    })
 
     lazy val robovmSettings = Seq(
       build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
@@ -234,12 +214,55 @@ object RobovmProjects {
       iosInfoPlist := None,
       iosEntitlementsPlist := None,
       iosResourceRulesPlist := None,
-      device <<= deviceTask dependsOn (compile in Compile),
-      iphoneSim <<= iphoneSimTask dependsOn (compile in Compile),
-      ipadSim <<= ipadSimTask dependsOn (compile in Compile),
-      ipa <<= ipaTask dependsOn (compile in Compile),
-      native <<= nativeTask dependsOn (compile in Compile),
-      robovmDebug := false
+      simulatorDevice := None,
+      device := {
+        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value
+
+        val launchParameters = config.getTarget.createLaunchParameters()
+        config.getTarget.launch(launchParameters).waitFor()
+      },
+      iphoneSim := {
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+
+        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
+        config.getTarget.launch(launchParameters).waitFor()
+      },
+      ipadSim := {
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+
+        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
+        config.getTarget.launch(launchParameters).waitFor()
+      },
+      ipa := {
+        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
+        config.getTarget.asInstanceOf[IOSTarget].createIpa()
+      },
+      simulator := {
+        val simulatorDeviceName:String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+
+        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+        val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
+        if(simDevice == null)sys.error(s"""iOS simulator device "$simulatorDeviceName" not found.""")
+        launchParameters.setDeviceType(simDevice)
+        config.getTarget.launch(launchParameters).waitFor()
+      },
+      native := {
+        val config = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true).value
+
+        val launchParameters = config.getTarget.createLaunchParameters()
+        config.getTarget.launch(launchParameters).waitFor()
+      },
+      robovmDebug := false,
+      simulatorDevices := {
+        val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
+        for(simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)){
+          println(simpleDevice)
+        }
+        println(devices.size()+" devices found.")
+      }
     )
 
     def apply(

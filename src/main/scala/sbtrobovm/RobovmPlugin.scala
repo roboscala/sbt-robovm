@@ -24,6 +24,8 @@ object RobovmPlugin extends Plugin {
   val iosEntitlementsPlist = SettingKey[Option[File]]("ios-entitlements-plist")
   val iosResourceRulesPlist = SettingKey[Option[File]]("ios-resource-rules-plist")
 
+  val simulatorDevice = SettingKey[Option[String]]("simulator-device","Simulator device to be used in simulator-device task")
+  val simulator = TaskKey[Unit]("simulator","Start package on specified device")
   val device = TaskKey[Unit]("device", "Start package on device after installation")
   val iphoneSim = TaskKey[Unit]("iphone-sim", "Start package on iphone simulator")
   val ipadSim = TaskKey[Unit]("ipad-sim", "Start package on ipad simulator")
@@ -32,6 +34,7 @@ object RobovmPlugin extends Plugin {
   val native = TaskKey[Unit]("native", "Run as native console application")
 
   val robovmDebug = SettingKey[Boolean]("robovm-debug","Propagates robovm Debug messages to Info level, to be visible")
+  val simulatorDevices = TaskKey[Unit]("simulator-devices", "Prints all available simulator devices to be used in simulator-device-name setting")
 
   val RobovmProject = RobovmProjects.Standard
 }

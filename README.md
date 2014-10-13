@@ -2,16 +2,16 @@ sbt-robovm
 ==========
 
 
-sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 0.0.13)
+sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-alpha-04)
 
 ## Setup
 
 1. Install Xcode (tested with 4.6.3 and 5.1)
 2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
 
-3. Download and extract [robovm-0.0.13.tar.gz](http://download.robovm.org/robovm-0.0.13.tar.gz) to one of these places:
+3. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
 
- * $ROBOVM_HOME
+ * $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
  * ~/Applications/robovm/
  * ~/.robovm/home/
  * /usr/local/lib/robovm/
@@ -28,7 +28,18 @@ $ sbt ios/device
 $ sbt ios/iphone-sim
 $ sbt ios/ipad-sim
 $ sbt ios/ipa
+$ sbt ios/simulator
 ```
+
+### Simulators
+
+`simulator` task will run program on device specified by `simulatorDevice` setting key.
+Example setting is:
+`RobovmPlugin.simulatorDevice := Some("iPad-Air, 7.1")`
+To see all installed simulators, run `$ sbt ios/simulator-devices`.
+You can download simulators for more iOS versions in Xcode. (Xcode has by default installed only latest iOS simulator)
+
+### Native
 
 If you are using the plugin to build a native desktop project:
 ```bash
@@ -45,7 +56,7 @@ If you are having issues after installing Xcode 5.0, open Xcode and agree to the
 
 If you need to make modifications to the plugin itself, you can compile and install it locally:
 ```bash
-$ git clone git://github.com/ajhager/sbt-robovm.git
+$ git clone git://github.com/roboscala/sbt-robovm.git
 $ cd sbt-robovm
 $ sbt publish-local
 ```
