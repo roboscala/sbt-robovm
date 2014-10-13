@@ -6,7 +6,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 ## Setup
 
-1. Install Xcode (tested with 4.6.3 and 5.1)
+1. Install Xcode 6.x
 2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
 
 3. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
@@ -50,7 +50,7 @@ $ sbt project-name/native
 
 The first time you try to compile a program, RoboVM must compile the Java and Scala standard libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
 
-If you are having issues after installing Xcode 5.0, open Xcode and agree to the license or open a Terminal and run xcrun.
+If you are having issues after installing Xcode, open Xcode and agree to the license or open a Terminal and run xcrun.
 
 ## Hacking on the plugin
 
