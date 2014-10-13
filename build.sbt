@@ -2,7 +2,7 @@ name := "sbt-robovm"
 
 organization := "com.hagerbot"
 
-val roboVersion = "0.0.14"
+val roboVersion = "1.0.0-alpha-04"
 
 version := roboVersion + "-SNAPSHOT"
 
@@ -19,6 +19,6 @@ publishTo <<= (version) { version: String =>
   Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
 }
 
-libraryDependencies ++= List("robovm-compiler", "robovm-rt", "robovm-objc", "robovm-cocoatouch", "robovm-cacerts-full").map("org.robovm" % _ % roboVersion)
+libraryDependencies ++= Seq("robovm-compiler", "robovm-rt", "robovm-objc", "robovm-cocoatouch", "robovm-cacerts-full").map("org.robovm" % _ % roboVersion)
 
 sbtPlugin := true
