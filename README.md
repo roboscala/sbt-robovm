@@ -18,7 +18,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
  * /opt/robovm/
  * /usr/lib/robovm/
 4. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-5. See [github.com/ajhager/scala-ios-demos](http://github.com/ajhager/scala-ios-demos) and [hagerbot.com/scala-on-ios](http://hagerbot.com/scala-on-ios/) for project creation and configuration
+5. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
 
 ## Usage
 
