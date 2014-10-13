@@ -2,7 +2,7 @@ name := "sbt-robovm"
 
 organization := "com.hagerbot"
 
-val roboVersion = "1.0.0-alpha-02"
+val roboVersion = "1.0.0-alpha-04"
 
 version := roboVersion + "-SNAPSHOT"
 
