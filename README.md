@@ -18,7 +18,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 	* /usr/local/lib/robovm/
 	* /opt/robovm/
 	* /usr/lib/robovm/
-1. See [github.com/roboscala/samples](http://github.com/roboscala/samples) for project creation and configuration
+1. See [roboscala-samples](http://github.com/roboscala/roboscala-samples) for project creation and configuration
 
 ## Usage
 
