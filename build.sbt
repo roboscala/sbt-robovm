@@ -1,6 +1,6 @@
 name := "sbt-robovm"
 
-organization := "com.hagerbot"
+organization := "org.roboscala"
 
 val roboVersion = "1.0.0-alpha-04"
 
