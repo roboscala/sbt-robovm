@@ -19,6 +19,6 @@ publishTo <<= (version) { version: String =>
   Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
 }
 
-libraryDependencies ++= Seq("robovm-compiler", "robovm-rt", "robovm-objc", "robovm-cocoatouch", "robovm-cacerts-full").map("org.robovm" % _ % roboVersion)
+libraryDependencies += "org.robovm" % "robovm-dist-compiler" % roboVersion
 
 sbtPlugin := true
