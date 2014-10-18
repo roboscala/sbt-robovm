@@ -1,28 +1,28 @@
 sbt-robovm
 ==========
 
-
 sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-alpha-04)
+
+## Changelog
+
+	* Change the organization to from `com.hagerbot` to `org.roboscala`
 
 ## Setup
 
-1. Install Xcode 6.x
-2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
-
-3. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
-
- * $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
- * ~/Applications/robovm/
- * ~/.robovm/home/
- * /usr/local/lib/robovm/
- * /opt/robovm/
- * /usr/lib/robovm/
-4. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-5. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
+	1. Install Xcode 6.x
+	2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
+	3. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
+		* $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
+		* ~/Applications/robovm/
+		* ~/.robovm/home/
+		* /usr/local/lib/robovm/
+		* /opt/robovm/
+		* /usr/lib/robovm/
+	4. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
+	5. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
 
 ## Usage
 
-If you've setup your 'ios' project to use RobovmProject:
 ```bash
 $ sbt ios/device
 $ sbt ios/iphone-sim
@@ -42,9 +42,12 @@ You can download simulators for more iOS versions in Xcode. (Xcode has by defaul
 ### Native
 
 If you are using the plugin to build a native desktop project:
+
 ```bash
 $ sbt project-name/native
 ```
+
+*NOTE* There is currently a bug in LLVM that will cause this to fail.
 
 ## Notes
 
@@ -55,6 +58,7 @@ If you are having issues after installing Xcode, open Xcode and agree to the lic
 ## Hacking on the plugin
 
 If you need to make modifications to the plugin itself, you can compile and install it locally:
+
 ```bash
 $ git clone git://github.com/roboscala/sbt-robovm.git
 $ cd sbt-robovm
