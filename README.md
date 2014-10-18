@@ -5,20 +5,19 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 ## Changelog
 
-* Changed the organization to from `com.hagerbot` to `org.roboscala`
+* Changed the organization from `com.hagerbot` to `org.roboscala`
 
 ## Setup
 
 1. Install Xcode 6.x
 1. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
+1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
 1. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
-	* $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
 	* ~/Applications/robovm/
 	* ~/.robovm/home/
 	* /usr/local/lib/robovm/
 	* /opt/robovm/
 	* /usr/lib/robovm/
-1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
 1. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
 
 ## Usage
@@ -33,11 +32,11 @@ $ sbt ios/simulator
 
 ### Simulators
 
-`simulator` task will run program on device specified by `simulatorDevice` setting key.
-Example setting is:
-`RobovmPlugin.simulatorDevice := Some("iPad-Air, 7.1")`
+The `simulator` task will run the program on device specified by the `simulatorDevice` setting key. For example: `RobovmPlugin.simulatorDevice := Some("iPad-Air, 7.1")`
+
 To see all installed simulators, run `$ sbt ios/simulator-devices`.
-You can download simulators for more iOS versions in Xcode. (Xcode has by default installed only latest iOS simulator)
+
+You can download simulators for more iOS versions in Xcode. (Xcode includes only the latest iOS simulator by default.)
 
 ### Native
 
