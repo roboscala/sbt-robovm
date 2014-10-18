@@ -5,21 +5,21 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 ## Changelog
 
-	* Change the organization to from `com.hagerbot` to `org.roboscala`
+* Changed the organization to from `com.hagerbot` to `org.roboscala`
 
 ## Setup
 
-	1. Install Xcode 6.x
-	2. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
-	3. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
-		* $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
-		* ~/Applications/robovm/
-		* ~/.robovm/home/
-		* /usr/local/lib/robovm/
-		* /opt/robovm/
-		* /usr/lib/robovm/
-	4. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-	5. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
+1. Install Xcode 6.x
+1. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
+1. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
+	* $ROBOVM_HOME  (NOTE: This may cause problems when sbt is run directly and env. variables are not set, e.g. in IntelliJ's SBT Console)
+	* ~/Applications/robovm/
+	* ~/.robovm/home/
+	* /usr/local/lib/robovm/
+	* /opt/robovm/
+	* /usr/lib/robovm/
+1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
+1. See [github.com/roboscala/scala-ios-demos](http://github.com/roboscala/scala-ios-demos) for project creation and configuration
 
 ## Usage
 
