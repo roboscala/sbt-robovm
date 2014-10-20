@@ -1,9 +1,9 @@
 sbt-robovm
 ==========
 
-*NOTE* There is currently a bug in LLVM that may cause building to fail.
-
 sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-alpha-04)
+
+*NOTE* Due to a bug in LLVM, most samples will fail to build for the simulator unless run through ProGuard first. The sample projects show how to use set that up, but your builds will take _much_ longer. Testing on an actual device is recommended until the bug is fixed.
 
 ## Changelog
 
