@@ -36,7 +36,7 @@ $ sbt ios/simulator
 
 The `simulator` task will run the program on device specified by the `simulatorDevice` setting key. For example: `RobovmPlugin.simulatorDevice := Some("iPad-Air, 7.1")`
 
-To see all installed simulators, run `$ sbt ios/simulator-devices`.
+To see all installed simulators, run `$ sbt simulator-devices`.
 
 You can download simulators for more iOS versions in Xcode. (Xcode includes only the latest iOS simulator by default.)
 
