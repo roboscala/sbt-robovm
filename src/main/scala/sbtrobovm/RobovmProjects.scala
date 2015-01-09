@@ -5,6 +5,7 @@ import org.robovm.compiler.config.Config.{Home, TargetType}
 import org.robovm.compiler.config.{Arch, Config, OS, Resource}
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios._
+import org.robovm.maven.resolver.RoboVMResolver
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
@@ -73,8 +74,15 @@ object RobovmProjects {
           .executableName(b.executableName)
           .logger(robovmLogger)
 
-        b.distHome map { file =>
-          builder.home(new Config.Home(file))
+        b.distHome match {
+          case Some(null) =>
+            //Do not set home in that case, RoboVM will try to find it on its own
+          case Some(explicitHome) =>
+            builder.home(new Config.Home(explicitHome))
+          case None =>
+            val resolver = new RoboVMResolver()
+            val downloadedHome = resolver.resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)
+            builder.home(new Config.Home(downloadedHome))
         }
 
         b.properties match {

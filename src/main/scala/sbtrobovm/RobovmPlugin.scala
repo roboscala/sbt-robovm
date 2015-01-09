@@ -3,11 +3,13 @@ package sbtrobovm
 import sbt._
 
 object RobovmPlugin extends Plugin {
+  val RoboVMVersion = "1.0.0-beta-02"
+
   val executableName = SettingKey[String]("executable-name")
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
   val frameworks = SettingKey[Seq[String]]("frameworks")
   val nativePath = SettingKey[Seq[File]]("native-path")
-  val distHome = SettingKey[Option[File]]("dist-home")
+  val distHome = SettingKey[Option[File]]("dist-home","Home of RoboVM installation. Will download as if None provided.")
   val robovmResources = TaskKey[Seq[File]]("robovm-resources")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
