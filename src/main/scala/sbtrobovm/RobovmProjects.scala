@@ -202,7 +202,7 @@ object RobovmProjects {
     }
 
     lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
+      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmVerbose.value),
       iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
@@ -263,7 +263,7 @@ object RobovmProjects {
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
       },
-      robovmDebug := false,
+      robovmVerbose := false,
       simulatorDevices := {
         val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
         for(simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)){

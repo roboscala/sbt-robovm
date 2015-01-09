@@ -7,6 +7,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 * Changed the organization from `com.hagerbot` to `org.roboscala`
 * Issue that prevented RoboVM from compiling certain Scala classes seems to be fixed now [(RoboVM issue #313)](https://github.com/robovm/robovm/issues/313)
+* Changed sbt key robovmDebug to robovmVerbose, since RoboVM now actually contains a debugger
 
 ## Setup
 

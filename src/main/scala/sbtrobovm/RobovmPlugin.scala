@@ -35,7 +35,7 @@ object RobovmPlugin extends Plugin {
 
   val native = TaskKey[Unit]("native", "Run as native console application")
 
-  val robovmDebug = SettingKey[Boolean]("robovm-debug","Propagates robovm Debug messages to Info level, to be visible")
+  val robovmVerbose = SettingKey[Boolean]("robovm-verbose","Propagates robovm Debug messages to Info level, to be visible")
   val simulatorDevices = TaskKey[Unit]("simulator-devices", "Prints all available simulator devices to be used in simulator-device-name setting")
 
   val RobovmProject = RobovmProjects.Standard
