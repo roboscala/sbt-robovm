@@ -270,6 +270,9 @@ object RobovmProjects {
           println(simpleDevice)
         }
         println(devices.size()+" devices found.")
+      },
+      robovmLicense := {
+        com.robovm.lm.LicenseManager.forkUI()
       }
     )
 
