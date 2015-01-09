@@ -3,11 +3,10 @@ sbt-robovm
 
 sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-beta-02)
 
-**NOTE** Due to a bug in LLVM, most samples will fail to build for the simulator unless run through ProGuard first. The sample projects show how to set that up, but your builds will take _much_ longer. Testing on an actual device is recommended until the bug is fixed. See [RoboVM issue #313](https://github.com/robovm/robovm/issues/313) for updates.
-
 ## Changelog
 
 * Changed the organization from `com.hagerbot` to `org.roboscala`
+* Issue that prevented RoboVM from compiling certain Scala classes seems to be fixed now [(RoboVM issue #313)](https://github.com/robovm/robovm/issues/313)
 
 ## Setup
 
@@ -50,7 +49,7 @@ The first time you try to compile a program, RoboVM must compile the Java and Sc
 If you are having issues after installing Xcode, open Xcode and agree to the license or open a Terminal and run xcrun.
 
 Plugin will by default download and unpack RoboVM by itself to local maven repository.
-If you wish to override that, you download and extract [robovm-1.0.0-beta-02.tar.gz](http://download.robovm.org/robovm-1.0.0-beta-02.tar.gz) anywhere you wish.
+If you wish to override that, download and extract [robovm-1.0.0-beta-02.tar.gz](http://download.robovm.org/robovm-1.0.0-beta-02.tar.gz) anywhere you wish.
 Then add `distHome := Some(file("PATH_TO_ROBOVM_HOME"))` to your build settings.
 Alternatively, extract RoboVM to one of these places:
 * ~/Applications/robovm/
@@ -58,6 +57,7 @@ Alternatively, extract RoboVM to one of these places:
 * /usr/local/lib/robovm/
 * /opt/robovm/
 * /usr/lib/robovm/
+
 And to your settings add `distHome := Some(null)`.
 
 ## Hacking on the plugin
