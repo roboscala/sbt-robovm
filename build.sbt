@@ -8,6 +8,8 @@ version := roboVersion + "-SNAPSHOT"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings")
 
+javacOptions ++= Seq("-source","6","-target","6")
+
 publishMavenStyle := false
 
 publishTo := {

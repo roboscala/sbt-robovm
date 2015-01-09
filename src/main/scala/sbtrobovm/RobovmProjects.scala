@@ -1,11 +1,11 @@
 package sbtrobovm
 
+import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
 import org.robovm.compiler.config.Config.{Home, TargetType}
 import org.robovm.compiler.config.{Arch, Config, OS, Resource}
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios._
-import org.robovm.maven.resolver.RoboVMResolver
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
@@ -80,7 +80,7 @@ object RobovmProjects {
           case Some(explicitHome) =>
             builder.home(new Config.Home(explicitHome))
           case None =>
-            val resolver = new RoboVMResolver()
+            val resolver = new SBTRoboVMResolver()
             val downloadedHome = resolver.resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)
             builder.home(new Config.Home(downloadedHome))
         }
