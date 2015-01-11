@@ -38,9 +38,12 @@ object RobovmProjects {
 
       val builder = new Config.Builder()
 
-      builder.mainClass((mainClass in(Compile, run)).value.orElse(selectMainClass.value).getOrElse(sys.error("Please supply a main class.")))
-        .executableName(executableName.value)
-        .logger(robovmLogger)
+      val mainClassName = (mainClass in(Compile, run)).value.orElse(selectMainClass.value).getOrElse(sys.error("Please supply a main class."))
+      st.log.debug("Using main class \""+mainClassName+"\"")
+
+      builder.mainClass(mainClassName)
+      builder.executableName(executableName.value)
+      builder.logger(robovmLogger)
 
       distHome.value match {
         case Some(null) =>
