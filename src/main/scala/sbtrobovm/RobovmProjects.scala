@@ -97,18 +97,9 @@ object RobovmProjects {
         }
       }
 
-      alternativeInputJars.value match {
-        case Some(alternativeFiles: Seq[File]) =>
-          alternativeFiles foreach { file =>
-            st.log.debug("Including alternative classpath item: " + file)
-            builder.addClasspathEntry(file)
-          }
-        case None =>
-          (fullClasspath in Compile).value foreach { classpathItem =>
-            val file = classpathItem.data
-            st.log.debug("Including classpath item: " + file)
-            builder.addClasspathEntry(file)
-          }
+      robovmInputJars.value foreach { jarFile =>
+        st.log.debug("Adding input jar: " + jarFile)
+        builder.addClasspathEntry(jarFile)
       }
 
       robovmResources.value foreach { file =>
@@ -181,7 +172,7 @@ object RobovmProjects {
       configFile := None,
       skipSigning := None,
       distHome := None,
-      alternativeInputJars := None,
+      robovmInputJars := (fullClasspath in Compile).value map (_.data),
       iosSdkVersion := None,
       iosSignIdentity := None,
       iosProvisioningProfile := None,

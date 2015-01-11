@@ -17,7 +17,7 @@ object RobovmPlugin extends Plugin {
   val configFile = SettingKey[Option[File]]("config-file","Path to xml with robovm configuration")
   val skipSigning = SettingKey[Option[Boolean]]("skip-signing","Whether to override signing behavior")
 
-  val alternativeInputJars = TaskKey[Option[Seq[File]]]("alternative-input-jars","Jars used instead of fullClasspath when Some")
+  val robovmInputJars = TaskKey[Seq[File]]("robovm-input-jars","Jars fed into RoboVM compiler. fullClasspath in compile by default.")
 
   val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
   val iosSignIdentity = SettingKey[Option[String]]("ios-sign-identity")
