@@ -38,7 +38,7 @@ object RobovmProjects {
 
       val builder = new Config.Builder()
 
-      builder.mainClass((mainClass in(Compile, run)).value.getOrElse("Main"))
+      builder.mainClass((mainClass in(Compile, run)).value.orElse(selectMainClass.value).getOrElse(sys.error("Please supply a main class.")))
         .executableName(executableName.value)
         .logger(robovmLogger)
 
