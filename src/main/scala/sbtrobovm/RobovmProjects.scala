@@ -14,47 +14,15 @@ import sbtrobovm.RobovmPlugin._
 object RobovmProjects {
 
   object Standard {
-    private val build = TaskKey[BuildSettings]("_aux_build")
-    private val iosBuild = TaskKey[IosBuildSettings]("_aux_ios_build")
 
-    case class BuildSettings(
-                              executableName: String,
-                              properties: Option[Either[File, Map[String, String]]],
-                              configFile: Option[File],
-                              skipSigning: Option[Boolean],
-                              forceLinkClasses: Seq[String],
-                              frameworks: Seq[String],
-                              nativePath: Seq[File],
-                              fullClasspath: Classpath,
-                              unmanagedResources: Seq[File],
-                              skipPngCrush: Boolean,
-                              flattenResources: Boolean,
-                              mainClass: Option[String],
-                              distHome: Option[File],
-                              alternativeJars: Option[Seq[File]],
-                              debug: Boolean
-                              )
-
-    case class IosBuildSettings(
-                                 sdkVersion: Option[String],
-                                 signIdentity: Option[String],
-                                 provisioningProfile: Option[String],
-                                 infoPlist: Option[File],
-                                 entitlementsPlist: Option[File],
-                                 resourceRulesPlist: Option[File]
-                                 )
-
-    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = {
-      Def.task[Config] {
+    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = Def.task[Config] {
         (compile in Compile).value
         val t = target.value
-        val b = build.value
-        val ios = iosBuild.value
         val st = streams.value
 
         val robovmLogger = new Logger() {
           def debug(s: String, o: java.lang.Object*) = {
-            if (b.debug) {
+            if (robovmVerbose.value) {
               st.log.info(s.format(o: _*))
             } else {
               st.log.debug(s.format(o: _*))
@@ -70,11 +38,11 @@ object RobovmProjects {
 
         val builder = new Config.Builder()
 
-        builder.mainClass(b.mainClass.getOrElse("Main"))
-          .executableName(b.executableName)
+        builder.mainClass((mainClass in(Compile, run)).value.getOrElse("Main"))
+          .executableName(executableName.value)
           .logger(robovmLogger)
 
-        b.distHome match {
+      distHome.value match {
           case Some(null) =>
             //Do not set home in that case, RoboVM will try to find it on its own
           case Some(explicitHome) =>
@@ -85,7 +53,7 @@ object RobovmProjects {
             builder.home(new Config.Home(downloadedHome))
         }
 
-        b.properties match {
+      robovmProperties.value match {
           case Some(Left(file)) =>
             st.log.debug("Including properties file: " + file.getAbsolutePath)
             builder.addProperties(file)
@@ -97,23 +65,23 @@ object RobovmProjects {
           case _ =>
         }
 
-        b.configFile map { file =>
+      configFile.value map { file =>
           st.log.debug("Loading config file: " + file.getAbsolutePath)
           builder.read(file)
         }
 
-        b.forceLinkClasses foreach { pattern =>
+      forceLinkClasses.value foreach { pattern =>
           st.log.debug("Including class pattern: " + pattern)
           builder.addForceLinkClass(pattern)
         }
 
-        b.frameworks foreach { framework =>
+      frameworks.value foreach { framework =>
           st.log.debug("Including framework: " + framework)
           builder.addFramework(framework)
         }
 
         val homeDir = file(".").getCanonicalPath.stripSuffix("/") + "/"
-        for (dir <- b.nativePath) {
+        for (dir <- nativePath.value) {
           if (dir.isDirectory) {
             dir.listFiles foreach { lib =>
               if (lib.isFile && !lib.isHidden) {
@@ -129,58 +97,58 @@ object RobovmProjects {
           }
         }
 
-        b.alternativeJars match {
+      alternativeInputJars.value match {
           case Some(alternativeFiles: Seq[File]) =>
             alternativeFiles foreach { file =>
               st.log.debug("Including alternative classpath item: " + file)
               builder.addClasspathEntry(file)
             }
           case None =>
-            b.fullClasspath.map(i => i.data) foreach { file =>
+            (fullClasspath in Compile).value.map(i => i.data) foreach { file =>
               st.log.debug("Including classpath item: " + file)
               builder.addClasspathEntry(file)
             }
         }
 
-        b.unmanagedResources foreach { file =>
+      robovmResources.value foreach { file =>
           st.log.debug("Including resource: " + file)
           val resource = new Resource(file)
-            .skipPngCrush(b.skipPngCrush)
-            .flatten(b.flattenResources)
+            .skipPngCrush(skipPngCrush.value)
+            .flatten(flattenResources.value)
           builder.addResource(resource)
         }
 
-        ios.sdkVersion map { version =>
+      iosSdkVersion.value map { version =>
           st.log.debug("Using explicit iOS SDK version: " + version)
           builder.iosSdkVersion(version)
         }
 
-        ios.signIdentity map { identity =>
+      iosSignIdentity.value map { identity =>
           st.log.debug("Using explicit iOS Signing identity: " + identity)
           builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
         }
 
-        ios.provisioningProfile map { profile =>
+      iosProvisioningProfile.value map { profile =>
           st.log.debug("Using explicit iOS provisioning profile: " + profile)
           builder.iosProvisioningProfile(ProvisioningProfile.find(ProvisioningProfile.list(), profile))
         }
 
-        ios.infoPlist map { file =>
+      iosInfoPlist.value map { file =>
           st.log.debug("Using Info.plist file: " + file.getAbsolutePath)
           builder.iosInfoPList(file)
         }
 
-        ios.entitlementsPlist map { file =>
+      iosEntitlementsPlist.value map { file =>
           st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath)
           builder.iosEntitlementsPList(file)
         }
 
-        ios.resourceRulesPlist map { file =>
+      iosResourceRulesPlist.value map { file =>
           st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath)
           builder.iosResourceRulesPList(file)
         }
 
-        b.skipSigning foreach builder.iosSkipSigning
+      skipSigning.value foreach builder.iosSkipSigning
 
         //To make sure that options were not overrided, that would not work.
         builder.skipInstall(skipInstall)
@@ -198,12 +166,9 @@ object RobovmProjects {
 
         st.log.info("RoboVM app compiled")
         config
-      }
     }
 
     lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmVerbose.value),
-      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
