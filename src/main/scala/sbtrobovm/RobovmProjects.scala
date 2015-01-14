@@ -15,7 +15,7 @@ object RobovmProjects {
 
   object Standard {
 
-    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = Def.task[Config] {
+    def launchTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
       (compile in Compile).value
       val t = target.value
       val st = streams.value
