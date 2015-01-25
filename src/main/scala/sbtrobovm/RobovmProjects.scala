@@ -205,7 +205,7 @@ object RobovmProjects {
       },
       ipa := {
         val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
-        config.getTarget.asInstanceOf[IOSTarget].createIpa()
+        config.getTarget.asInstanceOf[IOSTarget].createIpa(java.util.Collections.emptyList[File]())
       },
       simulator := {
         val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
