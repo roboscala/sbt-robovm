@@ -3,7 +3,7 @@ package sbtrobovm
 import sbt._
 
 object RobovmPlugin extends Plugin {
-  val RoboVMVersion = "1.0.0-beta-02"
+  val RoboVMVersion = "1.0.0-beta-03"
 
   val executableName = SettingKey[String]("executable-name")
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
