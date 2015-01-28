@@ -3,6 +3,29 @@ sbt-robovm
 
 sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-beta-03)
 
+## Cleanup and refactoring in progress in this branch
+This is essentially an experiment, how this plugin could look after refactoring.
+Philosophy:
+* There are two base "projects", iOSProject and NativeProject. Because iOS app cannot be directly compiled as
+a native console application, it does not make sense to provide settings and tasks of opposite projects to them.
+It seems that this was attempted at some point during original development, but never completed.
+* Clean up as much as possible. There are going to be breaking changes anyway, so change everything rough now, before
+it gets more users.
+
+What could be done:
+* Plugin exposes many settings that can also be defined in robovm.xml. Those will be probably removed from the plugin,
+in favor of using robovm.xml and supplying all variables through properties. Those settings that would lose flexibility should be kept.
+* Benefits of that:
+    * Less places to hold various configuration
+    * Less code to maintain, less work to do when more features added and less potential bugs
+    * More people will be able to help users of this plugin, robovm.xml is standard
+    * Even now, robovm.xml can configure way more, so people will likely still use .xml.
+* Disadvantages of that:
+    * Need to create a new file for smaller projects (Is there such thing?)
+    * Loss of some flexibility, nobody knows what will be eventually useful
+* Potential solution: Expose Config through some task and embrace removing everything that can be specified in robovm.xml from plugin.
+That would lead to minimum code, and maximum flexibility. However it is questionable how much would that be user friendly.
+
 ## Changelog
 
 * Changed the organization from `com.hagerbot` to `org.roboscala`
