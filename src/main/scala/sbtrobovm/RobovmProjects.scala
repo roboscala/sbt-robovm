@@ -80,8 +80,9 @@ object RobovmProjects {
     builder
   }
 
-  def launchTask(config: =>Config) = Def.task[Config] {
+  def launchTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
     val st = streams.value
+    val config = configTask(arch,os,targetType,skipInstall).value.build()
 
     st.log.info("Compiling RoboVM app, this could take a while")
     val compiler = new AppCompiler(config)
@@ -104,8 +105,8 @@ object RobovmProjects {
     ),
     robovmConfiguration := Right(
       <config>
-        <executableName>${{app.executable}</executableName>
-        <mainClass>${{app.mainclass}</mainClass>
+        <executableName>${{app.executable}}</executableName>
+        <mainClass>${{app.mainclass}}</mainClass>
         <resources>
           <resource>
             <directory>resources</directory>
@@ -150,20 +151,20 @@ object RobovmProjects {
     override lazy val projectSettings = Seq(
       simulatorDevice := None,
       device := {
-        val config = launchTask(configTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value.build()).value
+        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
       },
       iphoneSim := {
-        val config = launchTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value.build()).value
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipadSim := {
-        val config = launchTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value.build()).value
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
@@ -179,7 +180,7 @@ object RobovmProjects {
       },
       simulator := {
         val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
-        val config = launchTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value.build()).value
+        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
@@ -202,7 +203,7 @@ object RobovmProjects {
 
     override lazy val projectSettings = Seq(
       native := {
-        val config = launchTask(configTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true).value.build()).value
+        val config = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
