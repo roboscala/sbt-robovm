@@ -9,7 +9,6 @@ object RobovmPlugin extends Plugin {
   val forceLinkClasses = SettingKey[Seq[String]]("force-link-classes")
   val frameworks = SettingKey[Seq[String]]("frameworks")
   val nativePath = SettingKey[Seq[File]]("native-path")
-  val distHome = SettingKey[Option[File]]("dist-home","Home of RoboVM installation. Will download as if None provided.")
   val robovmResources = TaskKey[Seq[File]]("robovm-resources")
   val skipPngCrush = SettingKey[Boolean]("skip-png-crush")
   val flattenResources = SettingKey[Boolean]("flatten-resources")
@@ -17,6 +16,7 @@ object RobovmPlugin extends Plugin {
   val configFile = SettingKey[Option[File]]("config-file","Path to xml with robovm configuration")
   val skipSigning = SettingKey[Option[Boolean]]("skip-signing","Whether to override signing behavior")
 
+  val distHome = TaskKey[File]("dist-home","Return the home of RoboVM installation. Will download to local maven repository by default.")
   val robovmInputJars = TaskKey[Seq[File]]("robovm-input-jars","Jars fed into RoboVM compiler. fullClasspath in compile by default.")
 
   val iosSdkVersion = SettingKey[Option[String]]("ios-sdk-version")
@@ -26,7 +26,7 @@ object RobovmPlugin extends Plugin {
   val iosEntitlementsPlist = SettingKey[Option[File]]("ios-entitlements-plist")
   val iosResourceRulesPlist = SettingKey[Option[File]]("ios-resource-rules-plist")
 
-  val simulatorDevice = SettingKey[Option[String]]("simulator-device","Simulator device to be used in simulator-device task")
+  val simulatorDevice = SettingKey[Option[String]]("simulator-device","Simulator device to be used in simulator task")
   val simulator = TaskKey[Unit]("simulator","Start package on specified device")
   val device = TaskKey[Unit]("device", "Start package on device after installation")
   val iphoneSim = TaskKey[Unit]("iphone-sim", "Start package on iphone simulator")

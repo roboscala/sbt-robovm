@@ -48,14 +48,10 @@ object RobovmProjects {
       builder.logger(robovmLogger)
 
       distHome.value match {
-        case Some(null) =>
-        //Do not set home in that case, RoboVM will try to find it on its own
-        case Some(explicitHome) =>
-          builder.home(new Config.Home(explicitHome))
-        case None =>
-          val resolver = new SBTRoboVMResolver()
-          val downloadedHome = resolver.resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)
-          builder.home(new Config.Home(downloadedHome))
+        case null =>
+          //Do not set home in that case, RoboVM will try to find it on its own
+        case home:File =>
+          builder.home(new Config.Home(home))
       }
 
       robovmProperties.value match {
@@ -182,7 +178,9 @@ object RobovmProjects {
       robovmProperties := None,
       configFile := None,
       skipSigning := None,
-      distHome := None,
+      distHome := {
+        new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)
+      },
       robovmInputJars := (fullClasspath in Compile).value map (_.data),
       iosSdkVersion := None,
       iosSignIdentity := None,
@@ -237,7 +235,11 @@ object RobovmProjects {
       },
       robovmVerbose := false,
       simulatorDevices := {
-        val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
+        val home = Option(distHome.value).collect {
+          case file => new Home(file)
+        }.getOrElse(Home.find())
+
+        val devices = DeviceType.getSimpleDeviceTypeIds(home)
         for (simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)) {
           println(simpleDevice)
         }
