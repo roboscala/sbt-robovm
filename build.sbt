@@ -4,7 +4,7 @@ organization := "org.roboscala"
 
 val roboVersion = "1.0.0-beta-03" //When changing, change also RoboVMVersion in sbtrobovm.RobovmPlugin
 
-version := roboVersion + "-SNAPSHOT"
+version := roboVersion + "-cleanup-SNAPSHOT"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings")
 
