@@ -1,5 +1,8 @@
 package sbtrobovm
 
+import java.util
+
+import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
 import org.robovm.compiler.config.Config.{Home, TargetType}
 import org.robovm.compiler.config.{Arch, Config, OS, Resource}
@@ -13,189 +16,158 @@ import sbtrobovm.RobovmPlugin._
 object RobovmProjects {
 
   object Standard {
-    private val build = TaskKey[BuildSettings]("_aux_build")
-    private val iosBuild = TaskKey[IosBuildSettings]("_aux_ios_build")
 
-    case class BuildSettings(
-                              executableName: String,
-                              properties: Option[Either[File, Map[String, String]]],
-                              configFile: Option[File],
-                              skipSigning: Option[Boolean],
-                              forceLinkClasses: Seq[String],
-                              frameworks: Seq[String],
-                              nativePath: Seq[File],
-                              fullClasspath: Classpath,
-                              unmanagedResources: Seq[File],
-                              skipPngCrush: Boolean,
-                              flattenResources: Boolean,
-                              mainClass: Option[String],
-                              distHome: Option[File],
-                              alternativeJars: Option[Seq[File]],
-                              debug: Boolean
-                              )
+    def configTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
+      (compile in Compile).value
+      val t = target.value
+      val st = streams.value
 
-    case class IosBuildSettings(
-                                 sdkVersion: Option[String],
-                                 signIdentity: Option[String],
-                                 provisioningProfile: Option[String],
-                                 infoPlist: Option[File],
-                                 entitlementsPlist: Option[File],
-                                 resourceRulesPlist: Option[File]
-                                 )
-
-    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = {
-      Def.task[Config] {
-        (compile in Compile).value
-        val t = target.value
-        val b = build.value
-        val ios = iosBuild.value
-        val st = streams.value
-
-        val robovmLogger = new Logger() {
-          def debug(s: String, o: java.lang.Object*) = {
-            if (b.debug) {
-              st.log.info(s.format(o: _*))
-            } else {
-              st.log.debug(s.format(o: _*))
-            }
-          }
-
-          def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o: _*))
-
-          def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o: _*))
-
-          def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o: _*))
-        }
-
-        val builder = new Config.Builder()
-
-        builder.mainClass(b.mainClass.getOrElse("Main"))
-          .executableName(b.executableName)
-          .logger(robovmLogger)
-
-        b.distHome map { file =>
-          builder.home(new Config.Home(file))
-        }
-
-        b.properties match {
-          case Some(Left(file)) =>
-            st.log.debug("Including properties file: " + file.getAbsolutePath)
-            builder.addProperties(file)
-          case Some(Right(map)) =>
-            st.log.debug("Including properties: " + map)
-            for ((key, value) <- map) {
-              builder.addProperty(key, value)
-            }
-          case _ =>
-        }
-
-        b.configFile map { file =>
-          st.log.debug("Loading config file: " + file.getAbsolutePath)
-          builder.read(file)
-        }
-
-        b.forceLinkClasses foreach { pattern =>
-          st.log.debug("Including class pattern: " + pattern)
-          builder.addForceLinkClass(pattern)
-        }
-
-        b.frameworks foreach { framework =>
-          st.log.debug("Including framework: " + framework)
-          builder.addFramework(framework)
-        }
-
-        val homeDir = file(".").getCanonicalPath.stripSuffix("/") + "/"
-        for (dir <- b.nativePath) {
-          if (dir.isDirectory) {
-            dir.listFiles foreach { lib =>
-              if (lib.isFile && !lib.isHidden) {
-                val libRelativePath = lib.getCanonicalPath.stripPrefix(homeDir)
-
-                st.log.debug("Including lib: " + libRelativePath)
-
-                builder.addLib(new Config.Lib(libRelativePath, true))
-              }
-            }
+      val robovmLogger = new Logger() {
+        def debug(s: String, o: java.lang.Object*) = {
+          if (robovmVerbose.value) {
+            st.log.info(s.format(o: _*))
           } else {
-            st.log.warn(s"Natives directory '${dir.getAbsolutePath}' doesn't exist.")
+            st.log.debug(s.format(o: _*))
           }
         }
 
-        b.alternativeJars match {
-          case Some(alternativeFiles: Seq[File]) =>
-            alternativeFiles foreach { file =>
-              st.log.debug("Including alternative classpath item: " + file)
-              builder.addClasspathEntry(file)
-            }
-          case None =>
-            b.fullClasspath.map(i => i.data) foreach { file =>
-              st.log.debug("Including classpath item: " + file)
-              builder.addClasspathEntry(file)
-            }
-        }
+        def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o: _*))
 
-        b.unmanagedResources foreach { file =>
-          st.log.debug("Including resource: " + file)
-          val resource = new Resource(file)
-            .skipPngCrush(b.skipPngCrush)
-            .flatten(b.flattenResources)
-          builder.addResource(resource)
-        }
+        def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o: _*))
 
-        ios.sdkVersion map { version =>
-          st.log.debug("Using explicit iOS SDK version: " + version)
-          builder.iosSdkVersion(version)
-        }
-
-        ios.signIdentity map { identity =>
-          st.log.debug("Using explicit iOS Signing identity: " + identity)
-          builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
-        }
-
-        ios.provisioningProfile map { profile =>
-          st.log.debug("Using explicit iOS provisioning profile: " + profile)
-          builder.iosProvisioningProfile(ProvisioningProfile.find(ProvisioningProfile.list(), profile))
-        }
-
-        ios.infoPlist map { file =>
-          st.log.debug("Using Info.plist file: " + file.getAbsolutePath)
-          builder.iosInfoPList(file)
-        }
-
-        ios.entitlementsPlist map { file =>
-          st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath)
-          builder.iosEntitlementsPList(file)
-        }
-
-        ios.resourceRulesPlist map { file =>
-          st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath)
-          builder.iosResourceRulesPList(file)
-        }
-
-        b.skipSigning foreach builder.iosSkipSigning
-
-        //To make sure that options were not overrided, that would not work.
-        builder.skipInstall(skipInstall)
-          .targetType(targetType)
-          .os(os)
-          .arch(arch)
-
-        builder.installDir(t)
-        builder.tmpDir(t / "native")
-
-        st.log.info("Compiling RoboVM app, this could take a while")
-        val config = builder.build()
-        val compiler = new AppCompiler(config)
-        compiler.compile()
-
-        st.log.info("RoboVM app compiled")
-        config
+        def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o: _*))
       }
+
+      val builder = new Config.Builder()
+
+      val mainClassName = (mainClass in(Compile, run)).value.orElse((selectMainClass in Compile).value).getOrElse(sys.error("Please supply a main class."))
+      st.log.debug("Using main class \""+mainClassName+"\"")
+
+      builder.mainClass(mainClassName)
+      builder.executableName(executableName.value)
+      builder.logger(robovmLogger)
+
+      distHome.value match {
+        case null =>
+          //Do not set home in that case, RoboVM will try to find it on its own
+        case home:File =>
+          builder.home(new Config.Home(home))
+      }
+
+      robovmProperties.value match {
+        case Some(Left(propertyFile)) =>
+          st.log.debug("Including properties file: " + propertyFile.getAbsolutePath)
+          builder.addProperties(propertyFile)
+        case Some(Right(propertyMap)) =>
+          st.log.debug("Including properties: " + propertyMap)
+          for ((key, value) <- propertyMap) {
+            builder.addProperty(key, value)
+          }
+        case _ =>
+      }
+
+      configFile.value foreach { file =>
+        st.log.debug("Loading config file: " + file.getAbsolutePath)
+        builder.read(file)
+      }
+
+      forceLinkClasses.value foreach { pattern =>
+        st.log.debug("Including class pattern: " + pattern)
+        builder.addForceLinkClass(pattern)
+      }
+
+      frameworks.value foreach { framework =>
+        st.log.debug("Including framework: " + framework)
+        builder.addFramework(framework)
+      }
+
+      val homeDir = file(".").getCanonicalPath.stripSuffix("/") + "/"
+      for (dir <- nativePath.value) {
+        if (dir.isDirectory) {
+          dir.listFiles foreach { lib =>
+            if (lib.isFile && !lib.isHidden) {
+              val libRelativePath = lib.getCanonicalPath.stripPrefix(homeDir)
+
+              st.log.debug("Including lib: " + libRelativePath)
+
+              builder.addLib(new Config.Lib(libRelativePath, true))
+            }
+          }
+        } else {
+          st.log.warn(s"Natives directory '${dir.getAbsolutePath}' doesn't exist.")
+        }
+      }
+
+      robovmInputJars.value foreach { jarFile =>
+        st.log.debug("Adding input jar: " + jarFile)
+        builder.addClasspathEntry(jarFile)
+      }
+
+      robovmResources.value foreach { file =>
+        st.log.debug("Including resource: " + file)
+        val resource = new Resource(file)
+          .skipPngCrush(skipPngCrush.value)
+          .flatten(flattenResources.value)
+        builder.addResource(resource)
+      }
+
+      iosSdkVersion.value foreach { version =>
+        st.log.debug("Using explicit iOS SDK version: " + version)
+        builder.iosSdkVersion(version)
+      }
+
+      iosSignIdentity.value foreach { identity =>
+        st.log.debug("Using explicit iOS Signing identity: " + identity)
+        builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
+      }
+
+      iosProvisioningProfile.value foreach { profile =>
+        st.log.debug("Using explicit iOS provisioning profile: " + profile)
+        builder.iosProvisioningProfile(ProvisioningProfile.find(ProvisioningProfile.list(), profile))
+      }
+
+      iosInfoPlist.value foreach { file =>
+        st.log.debug("Using Info.plist file: " + file.getAbsolutePath)
+        builder.iosInfoPList(file)
+      }
+
+      iosEntitlementsPlist.value foreach { file =>
+        st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath)
+        builder.iosEntitlementsPList(file)
+      }
+
+      iosResourceRulesPlist.value foreach { file =>
+        st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath)
+        builder.iosResourceRulesPList(file)
+      }
+
+      skipSigning.value foreach builder.iosSkipSigning
+
+      //To make sure that options were not overrided, that would not work.
+      builder.skipInstall(skipInstall)
+        .targetType(targetType)
+        .os(os)
+        .arch(arch)
+
+      builder.installDir(t)
+      builder.tmpDir(t / "native")
+
+      builder.build()
+    }
+
+    def launchTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
+      val st = streams.value
+      val config = configTask(arch,os,targetType,skipInstall).value
+
+      st.log.info("Compiling RoboVM app, this could take a while")
+      val compiler = new AppCompiler(config)
+      compiler.compile()
+
+      st.log.info("RoboVM app compiled")
+      config
     }
 
     lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
-      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
       executableName := "RoboVM App",
       forceLinkClasses := Seq.empty,
       frameworks := Seq.empty,
@@ -206,8 +178,10 @@ object RobovmProjects {
       robovmProperties := None,
       configFile := None,
       skipSigning := None,
-      distHome := None,
-      alternativeInputJars := None,
+      distHome := {
+        new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)
+      },
+      robovmInputJars := (fullClasspath in Compile).value map (_.data),
       iosSdkVersion := None,
       iosSignIdentity := None,
       iosProvisioningProfile := None,
@@ -236,16 +210,20 @@ object RobovmProjects {
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipa := {
-        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
-        config.getTarget.asInstanceOf[IOSTarget].createIpa()
+        val config = configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false).value
+        val compiler = new AppCompiler(config)
+        val architectures = new util.ArrayList[Arch]()
+        architectures.add(Arch.thumbv7)
+        architectures.add(Arch.arm64)
+        compiler.createIpa(architectures)
       },
       simulator := {
-        val simulatorDeviceName:String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
+        val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
         val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
-        if(simDevice == null)sys.error(s"""iOS simulator device "$simulatorDeviceName" not found.""")
+        if (simDevice == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
         launchParameters.setDeviceType(simDevice)
         config.getTarget.launch(launchParameters).waitFor()
       },
@@ -255,13 +233,20 @@ object RobovmProjects {
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
       },
-      robovmDebug := false,
+      robovmVerbose := false,
       simulatorDevices := {
-        val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
-        for(simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)){
+        val home = Option(distHome.value).collect {
+          case file => new Home(file)
+        }.getOrElse(Home.find())
+
+        val devices = DeviceType.getSimpleDeviceTypeIds(home)
+        for (simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)) {
           println(simpleDevice)
         }
-        println(devices.size()+" devices found.")
+        println(devices.size() + " devices found.")
+      },
+      robovmLicense := {
+        com.robovm.lm.LicenseManager.forkUI()
       }
     )
 

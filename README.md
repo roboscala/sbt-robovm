@@ -1,25 +1,20 @@
 sbt-robovm
 ==========
 
-sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-alpha-04)
-
-**NOTE** Due to a bug in LLVM, most samples will fail to build for the simulator unless run through ProGuard first. The sample projects show how to set that up, but your builds will take _much_ longer. Testing on an actual device is recommended until the bug is fixed. See [RoboVM issue #313](https://github.com/robovm/robovm/issues/313) for updates.
+sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/) (version 1.0.0-beta-03)
 
 ## Changelog
 
 * Changed the organization from `com.hagerbot` to `org.roboscala`
+* Issue that prevented RoboVM from compiling certain Scala classes seems to be fixed now [(RoboVM issue #313)](https://github.com/robovm/robovm/issues/313)
+* Changed sbt key robovmDebug to robovmVerbose, since RoboVM now actually contains a debugger
+* Changed alternativeInputJars to robovmInputJars
 
 ## Setup
 
 1. Install Xcode 6.x
 1. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
 1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-1. Download and extract [robovm-1.0.0-alpha-04.tar.gz](http://download.robovm.org/robovm-1.0.0-alpha-04.tar.gz) to one of these places:
-	* ~/Applications/robovm/
-	* ~/.robovm/home/
-	* /usr/local/lib/robovm/
-	* /opt/robovm/
-	* /usr/lib/robovm/
 1. See [roboscala-samples](http://github.com/roboscala/roboscala-samples) for project creation and configuration
 
 ## Usage
@@ -54,6 +49,18 @@ $ sbt project-name/native
 The first time you try to compile a program, RoboVM must compile the Java and Scala standard libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
 
 If you are having issues after installing Xcode, open Xcode and agree to the license or open a Terminal and run xcrun.
+
+Plugin will by default download and unpack RoboVM by itself to local maven repository.
+If you wish to override that, download and extract [robovm-1.0.0-beta-03.tar.gz](http://download.robovm.org/robovm-1.0.0-beta-03.tar.gz) anywhere you wish.
+Then add `distHome := Some(file("PATH_TO_ROBOVM_HOME"))` to your build settings.
+Alternatively, extract RoboVM to one of these places:
+* ~/Applications/robovm/
+* ~/.robovm/home/
+* /usr/local/lib/robovm/
+* /opt/robovm/
+* /usr/lib/robovm/
+
+And to your settings add `distHome := Some(null)`.
 
 ## Hacking on the plugin
 
