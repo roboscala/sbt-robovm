@@ -1,5 +1,7 @@
 package sbtrobovm
 
+import java.util
+
 import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
 import org.robovm.compiler.config.Config.{Home, TargetType}
@@ -15,7 +17,7 @@ object RobovmProjects {
 
   object Standard {
 
-    def launchTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
+    def configTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
       (compile in Compile).value
       val t = target.value
       val st = streams.value
@@ -154,8 +156,14 @@ object RobovmProjects {
       builder.installDir(t)
       builder.tmpDir(t / "native")
 
+      builder.build()
+    }
+
+    def launchTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
+      val st = streams.value
+      val config = configTask(arch,os,targetType,skipInstall).value
+
       st.log.info("Compiling RoboVM app, this could take a while")
-      val config = builder.build()
       val compiler = new AppCompiler(config)
       compiler.compile()
 
@@ -204,8 +212,12 @@ object RobovmProjects {
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipa := {
-        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
-        config.getTarget.asInstanceOf[IOSTarget].createIpa(java.util.Collections.emptyList[File]())
+        val config = configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false).value
+        val compiler = new AppCompiler(config)
+        val architectures = new util.ArrayList[Arch]()
+        architectures.add(Arch.thumbv7)
+        architectures.add(Arch.arm64)
+        compiler.createIpa(architectures)
       },
       simulator := {
         val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
