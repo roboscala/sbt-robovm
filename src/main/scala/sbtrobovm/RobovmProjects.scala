@@ -179,7 +179,7 @@ object RobovmProjects {
         compiler.createIpa(architectures)
       },
       simulator := {
-        val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
+        val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulatorDevice setting and simulatorDevices task."))
         val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
