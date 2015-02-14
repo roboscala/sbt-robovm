@@ -75,7 +75,7 @@ object RobovmProjects {
 
     val t = target.value
     builder.installDir(t)
-    builder.tmpDir(t / "temporary")
+    builder.tmpDir(t / "robovmtmp")
 
     builder
   }
