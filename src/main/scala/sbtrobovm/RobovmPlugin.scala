@@ -15,7 +15,7 @@ object RobovmPlugin extends Plugin {
   val simulatorDevice = SettingKey[Option[String]]("simulatorDevice","Simulator device to be used in simulator task")
   val robovmProperties = TaskKey[Either[File, Map[String, String]]]("robovmProperties","Values that might be used in config-file substitutions")
   val robovmConfiguration = TaskKey[Either[File,Elem]]("robovmConfiguration","robovm.xml configuration")
-  val skipSigning = SettingKey[Option[Boolean]]("skip-signing","Whether to override signing behavior") //Here because cannot be changed in robovm.xml
+  val skipSigning = SettingKey[Option[Boolean]]("skip-signing","Whether to override signing behavior") //Here because cannot be changed anywhere else
 
   /* Tasks */
   // iOS Only
