@@ -33,7 +33,7 @@ Set those settings directly in robovm.xml.
 1. Install Xcode 6.x
 1. Install [JDK 7](http://www.oracle.com/technetwork/java/javase/downloads/jdk7-downloads-1880260.html)
 1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
-1. See [roboscala-samples](http://github.com/roboscala/roboscala-samples) for project creation and configuration
+1. See [roboscala-samples](https://github.com/Darkyenus/roboscala-samples/tree/cleanup) for project creation and configuration
 
 ## Usage
 
