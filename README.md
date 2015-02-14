@@ -22,10 +22,11 @@ But it's easy, see below for "Hacking on the plugin" section, just instead of
 ## How to migrate?
 If you are already using older version (that on master branch or original repository) there are a few things you'll have to change,
 since there has been some breaking changes.
-1. There is no longer any RobovmProject, use NativeProject or iOSProject instead. Usage remains same.
-2. Many setting keys for settings that could be set inside robovm.xml no longer exist. Those include `frameworks`, `robovmResources`, `skipPngCrush`, `iosInfoPlist` etc.
+
+1.  There is no longer any RobovmProject, use NativeProject or iOSProject instead. Usage remains same.
+2.  Many setting keys for settings that could be set inside robovm.xml no longer exist. Those include `frameworks`, `robovmResources`, `skipPngCrush`, `iosInfoPlist` etc.
 Set those settings directly in robovm.xml.
-3. robovm.xml and robovm.properties can be set in code. You can have robovm.xml as file and pass it changing stuff through `robovmProperties` or put robovm.xml directly in sbt code through `robovmConfiguration` key.
+3.  robovm.xml and robovm.properties can be set in code. You can have robovm.xml as file and pass it changing stuff through `robovmProperties` or put robovm.xml directly in sbt code through `robovmConfiguration` key.
 
 ## Setup
 
