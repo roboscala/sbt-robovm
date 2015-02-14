@@ -6,7 +6,7 @@ import sbt._
 import scala.xml.Elem
 
 object RobovmPlugin extends Plugin {
-  val RoboVMVersion = "1.0.0-beta-03"
+  val RoboVMVersion = "1.0.0-beta-04"
 
   /* General Settings and Setting tasks */
   val robovmHome = TaskKey[Config.Home]("robovmHome","Return the home of RoboVM installation. Will download to local maven repository by default.")
