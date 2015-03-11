@@ -1,8 +1,9 @@
 package sbtrobovm
 
-import java.io.StringReader
+import java.io.{IOException, StringReader}
 import java.util
 
+import org.apache.commons.io.FileUtils
 import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
 import org.robovm.compiler.config.Config.TargetType
@@ -60,12 +61,13 @@ object RobovmProjects {
         builder.read(new StringReader(xml.toString()),baseDirectory.value)
     }
 
+    builder.clearClasspathEntries()
     robovmInputJars.value foreach { jarFile =>
       st.log.debug("Adding input jar: " + jarFile)
       builder.addClasspathEntry(jarFile)
     }
 
-    skipSigning.value foreach builder.iosSkipSigning
+    robovmSkipSigning.value foreach builder.iosSkipSigning
 
     //To make sure that options were not overrided, that would not work.
     builder.skipInstall(skipInstall)
@@ -74,8 +76,25 @@ object RobovmProjects {
     builder.arch(arch)
 
     val t = target.value
-    builder.installDir(t)
-    builder.tmpDir(t / "robovmtmp")
+    builder.installDir(t / "robovm")
+    val tmpDir = t / "robovm.tmp"
+    if(tmpDir.isDirectory){
+      try {
+        FileUtils.deleteDirectory(tmpDir)
+      } catch {
+        case io:IOException =>
+          st.log.error("Failed to clean temporary output directory "+tmpDir)
+          st.log.trace(io)
+      }
+    }
+    tmpDir.mkdirs()
+    builder.tmpDir(tmpDir)
+
+    builder.debug(robovmDebug.value)
+    val debugPort = robovmDebugPort.value
+    if(debugPort > 0){
+      builder.addPluginArgument("debug:jdwpport=" + debugPort)
+    }
 
     builder
   }
@@ -114,7 +133,9 @@ object RobovmProjects {
         </resources>
       </config>
     ),
-    skipSigning := None,
+    robovmSkipSigning := None,
+    robovmDebug := false,
+    robovmDebugPort := 12345,
     robovmHome := new Config.Home(new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
@@ -149,7 +170,7 @@ object RobovmProjects {
   object iOSProject extends RoboVMProject {
 
     override lazy val projectSettings = Seq(
-      simulatorDevice := None,
+      robovmSimulatorDevice := None,
       device := {
         val config = configAndCompileTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value
 
@@ -179,7 +200,7 @@ object RobovmProjects {
         compiler.createIpa(architectures)
       },
       simulator := {
-        val simulatorDeviceName: String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulatorDevice setting and simulatorDevices task."))
+        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulatorDevice setting and simulatorDevices task."))
         val config = configAndCompileTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
