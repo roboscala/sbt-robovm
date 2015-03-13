@@ -90,10 +90,14 @@ object RobovmProjects {
     tmpDir.mkdirs()
     builder.tmpDir(tmpDir)
 
-    builder.debug(robovmDebug.value)
-    val debugPort = robovmDebugPort.value
-    if(debugPort > 0){
-      builder.addPluginArgument("debug:jdwpport=" + debugPort)
+    val enableRobovmDebug = robovmDebug.value
+    if(enableRobovmDebug){
+      st.log.info("RoboVM Debug is enabled")
+      builder.debug(true)
+      val debugPort = robovmDebugPort.value
+      if(debugPort != -1){
+        builder.addPluginArgument("debug:jdwpport=" + debugPort)
+      }
     }
 
     builder
@@ -135,7 +139,7 @@ object RobovmProjects {
     ),
     robovmSkipSigning := None,
     robovmDebug := false,
-    robovmDebugPort := 12345,
+    robovmDebugPort := -1,
     robovmHome := new Config.Home(new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
