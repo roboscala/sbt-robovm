@@ -5,7 +5,7 @@ import sbt._
 
 import scala.xml.Elem
 
-object RobovmPlugin extends Plugin {
+object RobovmPlugin extends Plugin with RobovmUtils {
   val RoboVMVersion = "1.0.0"
 
   /* General Settings and Setting tasks */

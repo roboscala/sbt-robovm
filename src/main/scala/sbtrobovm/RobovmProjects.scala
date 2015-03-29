@@ -145,7 +145,8 @@ object RobovmProjects {
     robovmVerbose := false,
     robovmLicense := {
       com.robovm.lm.LicenseManager.forkUI()
-    }
+    },
+    ivyConfigurations += ManagedNatives
   )
 
   trait RoboVMProject {
@@ -204,7 +205,7 @@ object RobovmProjects {
         compiler.createIpa(architectures)
       },
       simulator := {
-        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulatorDevice setting and simulatorDevices task."))
+        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
         val config = configAndCompileTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
