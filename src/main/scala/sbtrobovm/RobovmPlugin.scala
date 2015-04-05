@@ -26,6 +26,8 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val iphoneSim = taskKey[Unit]("Start package on iphone simulator")
   val ipadSim = taskKey[Unit]("Start package on ipad simulator")
   val ipa = taskKey[Unit]("Create an ipa file for the app store")
+
+  val provisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
 

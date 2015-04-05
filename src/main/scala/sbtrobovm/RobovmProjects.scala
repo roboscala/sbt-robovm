@@ -69,6 +69,32 @@ object RobovmProjects {
 
     robovmSkipSigning.value foreach builder.iosSkipSigning
 
+    provisioningProfile.value.foreach(name => {
+      val list = ProvisioningProfile.list()
+      try{
+        val profile = ProvisioningProfile.find(list,name)
+        builder.iosProvisioningProfile(profile)
+        st.log.debug("Using explicit provisioning profile: "+name)
+      }catch {
+        case _:IllegalArgumentException => // Not found
+          st.log.error("No provisioning profile identifiable with \""+name+"\" found. "+{
+            if(list.size() == 0){
+              "No profiles installed."
+            }else{
+              "Those were found: ("+list.size()+")"
+            }
+          })
+          for(i <- 0 until list.size()){
+            val profile = list.get(i)
+            st.log.error("\tName: "+profile.getName)
+            st.log.error("\t\tUUID: "+profile.getUuid)
+            st.log.error("\t\tAppID Prefix: "+profile.getAppIdPrefix)
+            st.log.error("\t\tAppID Name: "+profile.getAppIdName)
+            st.log.error("\t\tType: "+profile.getType)
+          }
+      }
+    })
+
     //To make sure that options were not overrided, that would not work.
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
@@ -146,6 +172,7 @@ object RobovmProjects {
     robovmLicense := {
       com.robovm.lm.LicenseManager.forkUI()
     },
+    provisioningProfile := None,
     ivyConfigurations += ManagedNatives
   )
 
