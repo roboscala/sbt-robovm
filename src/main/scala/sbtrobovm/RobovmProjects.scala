@@ -72,7 +72,7 @@ object RobovmProjects {
       try{
         val profile = ProvisioningProfile.find(list,name)
         builder.iosProvisioningProfile(profile)
-        st.log.debug("Using explicit provisioning profile: "+name)
+        st.log.debug("Using explicit provisioning profile: "+profile.toString)
       }catch {
         case _:IllegalArgumentException => // Not found
           st.log.error("No provisioning profile identifiable with \""+name+"\" found. "+{
@@ -104,7 +104,7 @@ object RobovmProjects {
         try{
           val signIdentity = SigningIdentity.find(list,name)
           builder.iosSignIdentity(signIdentity)
-          st.log.debug("Using explicit signing identity: "+name)
+          st.log.debug("Using explicit signing identity: "+signIdentity.toString)
         }catch {
           case _:IllegalArgumentException => // Not found
             st.log.error("No signing identity identifiable with \""+name+"\" found. "+{
