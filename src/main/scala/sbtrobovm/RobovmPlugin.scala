@@ -15,7 +15,6 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val robovmSimulatorDevice = settingKey[Option[String]]("Simulator device to be used in simulator task")
   val robovmProperties = taskKey[Either[File, Map[String, String]]]("Values that might be used in config-file substitutions")
   val robovmConfiguration = taskKey[Either[File,Elem]]("robovm.xml configuration")
-  val robovmSkipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior") //Here because cannot be changed anywhere else
   val robovmDebugPort = settingKey[Int]("Port on which debugger will listen (when enabled)")
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
   
@@ -27,7 +26,9 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val ipadSim = taskKey[Unit]("Start package on ipad simulator")
   val ipa = taskKey[Unit]("Create an ipa file for the app store")
 
+  val skipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior")
   val provisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
+  val signingIdentity = settingKey[Option[String]]("Specify signing identity to use when signing iOS code.")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
 

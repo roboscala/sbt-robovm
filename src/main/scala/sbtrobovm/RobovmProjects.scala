@@ -67,8 +67,6 @@ object RobovmProjects {
       builder.addClasspathEntry(jarFile)
     }
 
-    robovmSkipSigning.value foreach builder.iosSkipSigning
-
     provisioningProfile.value.foreach(name => {
       val list = ProvisioningProfile.list()
       try{
@@ -94,6 +92,36 @@ object RobovmProjects {
           }
       }
     })
+
+    val skipSign = skipSigning.value.exists(skip => skip) //Check if value is Some(true)
+
+    if(skipSign){
+      st.log.debug("Skipping signing.")
+      builder.iosSkipSigning(true)
+    }else{
+      signingIdentity.value.foreach(name => {
+        val list = SigningIdentity.list()
+        try{
+          val signIdentity = SigningIdentity.find(list,name)
+          builder.iosSignIdentity(signIdentity)
+          st.log.debug("Using explicit signing identity: "+name)
+        }catch {
+          case _:IllegalArgumentException => // Not found
+            st.log.error("No signing identity identifiable with \""+name+"\" found. "+{
+              if(list.size() == 0){
+                "No identities installed."
+              }else{
+                "Those were found: ("+list.size()+")"
+              }
+            })
+            for(i <- 0 until list.size()){
+              val identity = list.get(i)
+              st.log.error("\tName: "+identity.getName)
+              st.log.error("\t\tFingerprint: "+identity.getFingerprint)
+            }
+        }
+      })
+    }
 
     //To make sure that options were not overrided, that would not work.
     builder.skipInstall(skipInstall)
@@ -163,7 +191,7 @@ object RobovmProjects {
         </resources>
       </config>
     ),
-    robovmSkipSigning := None,
+    skipSigning := None,
     robovmDebug := false,
     robovmDebugPort := -1,
     robovmHome := new Config.Home(new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
@@ -172,7 +200,8 @@ object RobovmProjects {
     robovmLicense := {
       com.robovm.lm.LicenseManager.forkUI()
     },
-    provisioningProfile := None,
+    provisioningProfile := None, //TODO Figure out how to move these to iOSProject, so they won't be set elsewhere
+    signingIdentity := None,
     ivyConfigurations += ManagedNatives
   )
 
