@@ -67,62 +67,6 @@ object RobovmProjects {
       builder.addClasspathEntry(jarFile)
     }
 
-    provisioningProfile.value.foreach(name => {
-      val list = ProvisioningProfile.list()
-      try{
-        val profile = ProvisioningProfile.find(list,name)
-        builder.iosProvisioningProfile(profile)
-        st.log.debug("Using explicit provisioning profile: "+profile.toString)
-      }catch {
-        case _:IllegalArgumentException => // Not found
-          st.log.error("No provisioning profile identifiable with \""+name+"\" found. "+{
-            if(list.size() == 0){
-              "No profiles installed."
-            }else{
-              "Those were found: ("+list.size()+")"
-            }
-          })
-          for(i <- 0 until list.size()){
-            val profile = list.get(i)
-            st.log.error("\tName: "+profile.getName)
-            st.log.error("\t\tUUID: "+profile.getUuid)
-            st.log.error("\t\tAppID Prefix: "+profile.getAppIdPrefix)
-            st.log.error("\t\tAppID Name: "+profile.getAppIdName)
-            st.log.error("\t\tType: "+profile.getType)
-          }
-      }
-    })
-
-    val skipSign = skipSigning.value.exists(skip => skip) //Check if value is Some(true)
-
-    if(skipSign){
-      st.log.debug("Skipping signing.")
-      builder.iosSkipSigning(true)
-    }else{
-      signingIdentity.value.foreach(name => {
-        val list = SigningIdentity.list()
-        try{
-          val signIdentity = SigningIdentity.find(list,name)
-          builder.iosSignIdentity(signIdentity)
-          st.log.debug("Using explicit signing identity: "+signIdentity.toString)
-        }catch {
-          case _:IllegalArgumentException => // Not found
-            st.log.error("No signing identity identifiable with \""+name+"\" found. "+{
-              if(list.size() == 0){
-                "No identities installed."
-              }else{
-                "Those were found: ("+list.size()+")"
-              }
-            })
-            for(i <- 0 until list.size()){
-              val identity = list.get(i)
-              st.log.error("\tName: "+identity.getName)
-              st.log.error("\t\tFingerprint: "+identity.getFingerprint)
-            }
-        }
-      })
-    }
-
     //To make sure that options were not overrided, that would not work.
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
@@ -157,10 +101,10 @@ object RobovmProjects {
     builder
   }
 
-  def configAndCompileTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config] {
+  def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[Config] {
     val st = streams.value
-    val config = configTask(arch,os,targetType,skipInstall).value.build()
 
+    val config = configBuilderTask.value.build()
     st.log.info("Compiling RoboVM app, this could take a while")
     val compiler = new AppCompiler(config)
     compiler.compile()
@@ -200,8 +144,6 @@ object RobovmProjects {
     robovmLicense := {
       com.robovm.lm.LicenseManager.forkUI()
     },
-    provisioningProfile := None, //TODO Figure out how to move these to iOSProject, so they won't be set elsewhere
-    signingIdentity := None,
     ivyConfigurations += ManagedNatives
   )
 
@@ -230,30 +172,95 @@ object RobovmProjects {
 
   object iOSProject extends RoboVMProject {
 
+    def configIOSTask(configBuilderTask:Def.Initialize[Task[Config.Builder]], scope: Scoped) = Def.task[Config.Builder]{
+      val st = streams.value
+      val builder = configBuilderTask.value
+
+      (provisioningProfile in scope).value.foreach(name => {
+        val list = ProvisioningProfile.list()
+        try{
+          val profile = ProvisioningProfile.find(list,name)
+          builder.iosProvisioningProfile(profile)
+          st.log.debug("Using explicit provisioning profile: "+profile.toString)
+        }catch {
+          case _:IllegalArgumentException => // Not found
+            st.log.error("No provisioning profile identifiable with \""+name+"\" found. "+{
+              if(list.size() == 0){
+                "No profiles installed."
+              }else{
+                "Those were found: ("+list.size()+")"
+              }
+            })
+            for(i <- 0 until list.size()){
+              val profile = list.get(i)
+              st.log.error("\tName: "+profile.getName)
+              st.log.error("\t\tUUID: "+profile.getUuid)
+              st.log.error("\t\tAppID Prefix: "+profile.getAppIdPrefix)
+              st.log.error("\t\tAppID Name: "+profile.getAppIdName)
+              st.log.error("\t\tType: "+profile.getType)
+            }
+        }
+      })
+
+      val skipSign = skipSigning.value.exists(skip => skip) //Check if value is Some(true)
+
+      if(skipSign){
+        st.log.debug("Skipping signing.")
+        builder.iosSkipSigning(true)
+      }else{
+        (signingIdentity in scope).value.foreach(name => {
+          val list = SigningIdentity.list()
+          try{
+            val signIdentity = SigningIdentity.find(list,name)
+            builder.iosSignIdentity(signIdentity)
+            st.log.debug("Using explicit signing identity: "+signIdentity.toString)
+          }catch {
+            case _:IllegalArgumentException => // Not found
+              st.log.error("No signing identity identifiable with \""+name+"\" found. "+{
+                if(list.size() == 0){
+                  "No identities installed."
+                }else{
+                  "Those were found: ("+list.size()+")"
+                }
+              })
+              for(i <- 0 until list.size()){
+                val identity = list.get(i)
+                st.log.error("\tName: "+identity.getName)
+                st.log.error("\t\tFingerprint: "+identity.getFingerprint)
+              }
+          }
+        })
+      }
+
+      builder
+    }
+
     override lazy val projectSettings = Seq(
       robovmSimulatorDevice := None,
+      provisioningProfile := None,
+      signingIdentity := None,
       device := {
-        val config = configAndCompileTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value
+        val config = buildTask(configIOSTask(configTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true), device)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
       },
       iphoneSim := {
-        val config = configAndCompileTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), iphoneSim)).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipadSim := {
-        val config = configAndCompileTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), ipadSim)).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipa := {
-        val config = configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false).value.build()
+        val config = configIOSTask(configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
         val compiler = new AppCompiler(config)
         val architectures = new util.ArrayList[Arch]()
         architectures.add(Arch.thumbv7)
@@ -262,7 +269,7 @@ object RobovmProjects {
       },
       simulator := {
         val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
-        val config = configAndCompileTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), simulator)).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
         val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
@@ -285,7 +292,7 @@ object RobovmProjects {
 
     override lazy val projectSettings = Seq(
       native := {
-        val config = configAndCompileTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true).value
+        val config = buildTask(configTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         config.getTarget.launch(launchParameters).waitFor()
