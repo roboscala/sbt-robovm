@@ -53,6 +53,22 @@ To see all installed simulators, run `$ sbt simulator-devices`.
 
 You can download simulators for more iOS versions in Xcode. (Xcode includes only the latest iOS simulator by default.)
 
+### Signing details
+
+When you develop, you will most likely want to specify signing identity and provisioning profile.
+To do that, add following keys:
+
+```
+provisioningProfile := Some("<Name of your development provisioning profile>"),
+signingIdentity := Some("<Name of your development signing identity>"),
+provisioningProfile in ipa := Some("<Name of your distribution provisioning profile>"),
+signingIdentity in ipa := Some("<Name of your distribution signing identity>")
+```
+
+You can also specify other identifying features instead of name, for example fingerprint.
+
+Specifying profile or identity that isn't installed, will print information about those which are installed.
+
 ### Native
 
 If you are using the plugin to build a native desktop project:
