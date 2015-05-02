@@ -101,7 +101,7 @@ object RobovmProjects {
     builder
   }
 
-  def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[Config] {
+  def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[(Config, AppCompiler)] {
     val st = streams.value
 
     val config = configBuilderTask.value.build()
@@ -110,7 +110,7 @@ object RobovmProjects {
     compiler.compile()
 
     st.log.info("RoboVM app compiled")
-    config
+    (config, compiler)
   }
 
   lazy val baseSettings = Seq(
@@ -235,29 +235,50 @@ object RobovmProjects {
       builder
     }
 
+    def buildSimulatorTask(scope:Scoped) = Def.task[(Config, AppCompiler)]{
+      buildTask(
+        configIOSTask(
+          configTask(
+          {
+            Arch.x86 //TODO Support for launching 64bit simulator
+          }, OS.ios, TargetType.ios, skipInstall = true),
+          scope
+        )
+      ).value
+    }
+
+    def runSimulator(config:Config,compiler:AppCompiler, device:DeviceType):Int = {
+      val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+      launchParameters.setDeviceType(device)
+
+      //TODO Stdout and stderr fifos
+
+      compiler.launch(launchParameters)
+    }
+
     override lazy val projectSettings = Seq(
       robovmSimulatorDevice := None,
       provisioningProfile := None,
       signingIdentity := None,
       device := {
-        val config = buildTask(configIOSTask(configTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true), device)).value
+        //TODO Allow launching on 64bit device if specified
+        val (config, compiler) = buildTask(configIOSTask(configTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true), device)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
-        config.getTarget.launch(launchParameters).waitFor()
+        val code = compiler.launch(launchParameters)
+        streams.value.log.debug("device task finished (exit code "+code+")")
       },
       iphoneSim := {
-        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), iphoneSim)).value
-
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
-        config.getTarget.launch(launchParameters).waitFor()
+        val (config,compiler) = buildSimulatorTask(iphoneSim).value
+        val device = DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone) //TODO Allow specifying SDK version and iPhone version?
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("iphoneSim task finished (exit code "+code+")")
       },
       ipadSim := {
-        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), ipadSim)).value
-
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
-        config.getTarget.launch(launchParameters).waitFor()
+        val (config,compiler) = buildSimulatorTask(ipadSim).value
+        val device = DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad) //TODO Allow specifying SDK version and iPad version?
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("ipadSim task finished (exit code "+code+")")
       },
       ipa := {
         val config = configIOSTask(configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
@@ -268,14 +289,14 @@ object RobovmProjects {
         compiler.createIpa(architectures)
       },
       simulator := {
-        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
-        val config = buildTask(configIOSTask(configTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true), simulator)).value
+        val (config,compiler) = buildSimulatorTask(simulator).value
 
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
-        if (simDevice == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
-        launchParameters.setDeviceType(simDevice)
-        config.getTarget.launch(launchParameters).waitFor()
+        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
+        val device = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
+        if (device == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
+
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("simulator task finished (exit code "+code+")")
       },
       simulatorDevices := {
         val devices = DeviceType.getSimpleDeviceTypeIds(robovmHome.value)
@@ -292,10 +313,11 @@ object RobovmProjects {
 
     override lazy val projectSettings = Seq(
       native := {
-        val config = buildTask(configTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
+        val (config, compiler) = buildTask(configTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
-        config.getTarget.launch(launchParameters).waitFor()
+        val code = compiler.launch(launchParameters)
+        streams.value.log.debug("native task finished (exit code "+code+")")
       }
     )
     
