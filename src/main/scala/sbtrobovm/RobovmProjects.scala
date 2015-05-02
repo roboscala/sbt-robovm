@@ -138,7 +138,7 @@ object RobovmProjects {
     skipSigning := None,
     robovmDebug := false,
     robovmDebugPort := -1,
-    robovmHome := new Config.Home(new SBTRoboVMResolver().resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
+    robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
     robovmLicense := {

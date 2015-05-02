@@ -4,6 +4,7 @@ import org.jboss.shrinkwrap.resolver.api.maven.ConfigurableMavenResolverSystem;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact;
 import org.robovm.maven.resolver.RoboVMResolver;
+import xsbti.F0;
 
 /**
  * This class is a workaround for problem that emerged when using vanilla RoboVMResolver.
@@ -24,6 +25,30 @@ import org.robovm.maven.resolver.RoboVMResolver;
  * Imagine how much fun was to debug this.
  */
 public class SBTRoboVMResolver extends RoboVMResolver {
+
+    public SBTRoboVMResolver(final sbt.Logger logger) {
+        setLogger(new org.robovm.maven.resolver.Logger(){
+            @Override
+            public void debug(final String logLine) {
+                logger.debug(new F0<String>() {
+                    @Override
+                    public String apply() {
+                        return logLine;
+                    }
+                });
+            }
+
+            @Override
+            public void info(final String logLine) {
+                logger.info(new F0<String>() {
+                    @Override
+                    public String apply() {
+                        return logLine;
+                    }
+                });
+            }
+        });
+    }
 
     private ConfigurableMavenResolverSystem configureResolver(){
         try {
