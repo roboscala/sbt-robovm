@@ -17,7 +17,7 @@ import sbtrobovm.RobovmPlugin._
 
 object RobovmProjects {
 
-  def configTask(arch: => Arch, os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config.Builder] {
+  def configTask(arch: Def.Initialize[Option[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config.Builder] {
     val st = streams.value
 
     val builder = new Config.Builder()
@@ -71,7 +71,7 @@ object RobovmProjects {
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
     builder.os(os)
-    builder.arch(arch)
+    arch.value.foreach(builder.arch)
 
     val t = target.value
     builder.installDir(t / "robovm")
@@ -141,6 +141,7 @@ object RobovmProjects {
     robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
+    robovmTarget64bit := false,
     robovmLicense := {
       com.robovm.lm.LicenseManager.forkUI()
     },
@@ -235,13 +236,14 @@ object RobovmProjects {
       builder
     }
 
+    private def simulatorArchitectureSetting(scope:Scoped) = Def.setting[Option[Arch]]{
+      Some(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
+    }
+
     def buildSimulatorTask(scope:Scoped) = Def.task[(Config, AppCompiler)]{
       buildTask(
         configIOSTask(
-          configTask(
-          {
-            Arch.x86 //TODO Support for launching 64bit simulator
-          }, OS.ios, TargetType.ios, skipInstall = true),
+          configTask(simulatorArchitectureSetting(scope), OS.ios, TargetType.ios, skipInstall = true),
           scope
         )
       ).value
@@ -256,13 +258,18 @@ object RobovmProjects {
       compiler.launch(launchParameters)
     }
 
+    private val deviceArchitectureSetting = Def.setting[Option[Arch]]{
+      Some(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
+    }
+
+    private val noArchitectureSetting = Def.setting[Option[Arch]]{None}
+
     override lazy val projectSettings = Seq(
       robovmSimulatorDevice := None,
       provisioningProfile := None,
       signingIdentity := None,
       device := {
-        //TODO Allow launching on 64bit device if specified
-        val (config, compiler) = buildTask(configIOSTask(configTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true), device)).value
+        val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true), device)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         val code = compiler.launch(launchParameters)
@@ -281,7 +288,7 @@ object RobovmProjects {
         streams.value.log.debug("ipadSim task finished (exit code "+code+")")
       },
       ipa := {
-        val config = configIOSTask(configTask(arch = null, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
+        val config = configIOSTask(configTask(noArchitectureSetting, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
         val compiler = new AppCompiler(config)
         val architectures = new util.ArrayList[Arch]()
         architectures.add(Arch.thumbv7)
@@ -311,9 +318,12 @@ object RobovmProjects {
 
   object NativeProject extends RoboVMProject {
 
+    val robovmTargetArchitecture = settingKey[Option[Arch]]("Architecture targeted by NativeProject")
+
     override lazy val projectSettings = Seq(
+      robovmTargetArchitecture := Some(Arch.getDefaultArch),
       native := {
-        val (config, compiler) = buildTask(configTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
+        val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
         val code = compiler.launch(launchParameters)

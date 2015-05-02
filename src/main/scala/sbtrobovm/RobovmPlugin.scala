@@ -17,7 +17,8 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val robovmConfiguration = taskKey[Either[File,Elem]]("robovm.xml configuration")
   val robovmDebugPort = settingKey[Int]("Port on which debugger will listen (when enabled)")
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
-  
+  val robovmTarget64bit = settingKey[Boolean]("Whether to build 64bit executables")
+
   /* Specific settings and tasks */
   // iOS Only
   val simulator = taskKey[Unit]("Start package on specified device")
