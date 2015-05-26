@@ -225,26 +225,26 @@ object RobovmProjects {
         val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
+        launchParameters.setDeviceType(DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone))
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipadSim := {
         val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
+        launchParameters.setDeviceType(DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad))
         config.getTarget.launch(launchParameters).waitFor()
       },
       ipa := {
         val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
-        config.getTarget.asInstanceOf[IOSTarget].createIpa()
+        config.getTarget.asInstanceOf[IOSTarget].createIpa(new java.util.ArrayList[java.io.File]())
       },
       simulator := {
         val simulatorDeviceName:String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
         val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
 
         val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
+        val simDevice = DeviceType.getDeviceType(simulatorDeviceName)
         if(simDevice == null)sys.error(s"""iOS simulator device "$simulatorDeviceName" not found.""")
         launchParameters.setDeviceType(simDevice)
         config.getTarget.launch(launchParameters).waitFor()
@@ -257,7 +257,7 @@ object RobovmProjects {
       },
       robovmDebug := false,
       simulatorDevices := {
-        val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
+        val devices = DeviceType.getSimpleDeviceTypeIds()
         for(simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)){
           println(simpleDevice)
         }
