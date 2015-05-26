@@ -2,7 +2,7 @@ name := "sbt-robovm"
 
 organization := "org.roboscala"
 
-val roboVersion = "1.1.0" //When changing, change also RoboVMVersion in sbtrobovm.RobovmPlugin
+val roboVersion = "1.2.0" //When changing, change also RoboVMVersion in sbtrobovm.RobovmPlugin
 
 version := roboVersion + "-SNAPSHOT"
 
