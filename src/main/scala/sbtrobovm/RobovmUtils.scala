@@ -4,6 +4,7 @@ import org.apache.commons.io.FileUtils
 import sbt.Keys._
 import sbt.{Def, _}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.xml.Elem
 
 /**
@@ -20,6 +21,12 @@ trait RobovmUtils {
   /**
    * Creates task that produces native library files from dependencies that have RoboVMNativesConfiguration.
    * Whether or not a file is indeed a native library is decided by checking the extension.
+   *
+   * Found .jar files are extracted and searched recursively.
+   *
+   * NOTE: Since 1.2.0 RoboVM can detect and use natives from classpath, if properly configured.
+   * See https://github.com/robovm/robovm/issues/132.
+   * That makes this feature partly obsolete.
    *
    * @param extensions that are valid. Ignore case.
    * @return Collection of files that are extracted native libraries
@@ -57,9 +64,19 @@ trait RobovmUtils {
         FileUtils.cleanDirectory(targetDirectory)
         IO.unzip(jar, targetDirectory, nameFilter, preserveLastModified = false)
       }
-      targetDirectory.listFiles().filter(file => {
-        !file.isDirectory && !file.isHidden && nameFilter.accept(file)
-      })
+
+      val results = new ArrayBuffer[File]()
+      def includeNatives(directory:File): Unit ={
+        for(file <- directory.listFiles() if !file.isHidden){
+          if(file.isDirectory){
+            includeNatives(file)
+          }else if(file.isFile && nameFilter.accept(file)){
+            results += file
+          }
+        }
+      }
+      includeNatives(targetDirectory)
+      results:Iterable[File]
     }
 
     val result = results.flatten
