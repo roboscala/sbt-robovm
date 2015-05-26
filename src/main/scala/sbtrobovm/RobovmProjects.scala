@@ -286,13 +286,13 @@ object RobovmProjects {
       },
       iphoneSim := {
         val (config,compiler) = buildSimulatorTask(iphoneSim).value
-        val device = DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone) //TODO Allow specifying SDK version and iPhone version?
+        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone) //TODO Allow specifying SDK version and iPhone version?
         val code = runSimulator(config, compiler, device)
         streams.value.log.debug("iphoneSim task finished (exit code "+code+")")
       },
       ipadSim := {
         val (config,compiler) = buildSimulatorTask(ipadSim).value
-        val device = DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad) //TODO Allow specifying SDK version and iPad version?
+        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad) //TODO Allow specifying SDK version and iPad version?
         val code = runSimulator(config, compiler, device)
         streams.value.log.debug("ipadSim task finished (exit code "+code+")")
       },
@@ -308,14 +308,14 @@ object RobovmProjects {
         val (config,compiler) = buildSimulatorTask(simulator).value
 
         val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
-        val device = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
+        val device = DeviceType.getDeviceType(simulatorDeviceName)
         if (device == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
 
         val code = runSimulator(config, compiler, device)
         streams.value.log.debug("simulator task finished (exit code "+code+")")
       },
       simulatorDevices := {
-        val devices = DeviceType.getSimpleDeviceTypeIds(robovmHome.value)
+        val devices = DeviceType.getSimpleDeviceTypeIds
         for (simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)) {
           println(simpleDevice)
         }
