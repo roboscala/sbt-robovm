@@ -104,7 +104,16 @@ object RobovmProjects {
   def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[(Config, AppCompiler)] {
     val st = streams.value
 
-    val config = configBuilderTask.value.build()
+    val configBuilder = configBuilderTask.value
+    try{
+      configBuilder.write(target.value / "LastRobovm.xml")
+      st.log.debug("Written LastRobovm.xml (for debug)")
+    }catch {
+      case e:Exception =>
+        st.log.debug("Failed to write LastRobovm.xml (for debug) "+e)
+    }
+    val config = configBuilder.build()
+
     st.log.info("Compiling RoboVM app, this could take a while")
     val compiler = new AppCompiler(config)
     compiler.compile()
