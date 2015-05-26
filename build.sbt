@@ -2,7 +2,7 @@ name := "sbt-robovm"
 
 organization := "org.roboscala"
 
-val roboVersion = "1.0.0-alpha-04"
+val roboVersion = "1.2.0"
 
 version := roboVersion + "-SNAPSHOT"
 
