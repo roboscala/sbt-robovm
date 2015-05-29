@@ -10,6 +10,7 @@ import org.robovm.compiler.config.Config.TargetType
 import org.robovm.compiler.config.{Arch, Config, OS}
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios._
+import org.robovm.libimobiledevice.IDevice
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
@@ -182,6 +183,8 @@ object RobovmProjects {
 
   object iOSProject extends RoboVMProject {
 
+    val lastUsedDeviceFile = settingKey[File]("A file to save last used (non-preferred) device ID to. Can be null to disable this.")
+
     def configIOSTask(configBuilderTask:Def.Initialize[Task[Config.Builder]], scope: Scoped) = Def.task[Config.Builder]{
       val st = streams.value
       val builder = configBuilderTask.value
@@ -277,12 +280,50 @@ object RobovmProjects {
       robovmSimulatorDevice := None,
       provisioningProfile := None,
       signingIdentity := None,
+      preferredDevices := Nil,
+      lastUsedDeviceFile := target.value / "LasuUsediOSDevice.txt",
       device := {
+        val log = streams.value.log
         val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true), device)).value
 
         val launchParameters = config.getTarget.createLaunchParameters()
+
+        launchParameters match {
+          case iLP: IOSDeviceLaunchParameters =>
+            val prefDevices = preferredDevices.value
+            val lastUsedIDFile = lastUsedDeviceFile.value
+            val devices = IDevice.listUdids()
+            if (devices.length == 1) {
+              if(lastUsedDeviceFile != null && !prefDevices.contains(devices(0))){
+                //Save this device, in case of more becoming available later
+                FileUtils.write(lastUsedIDFile, devices(0), false)
+                log.debug("Saved the last used device ID")
+              }
+              iLP.setDeviceId(devices(0)) //So it does not have to be listed multiple times
+            }else if(devices.length > 1){
+              prefDevices.find(preferredDevice => devices.contains(preferredDevice)) match {
+                case Some(foundPreferredDeviceID) =>
+                  iLP.setDeviceId(foundPreferredDeviceID)
+                case None =>
+                  var deviceSet = false
+                  if(lastUsedIDFile != null && lastUsedIDFile.isFile){
+                    //No preferred device found, but there is last used ID file, let's try that
+                    val lastID = FileUtils.readFileToString(lastUsedIDFile)
+                    if(devices.contains(lastID)){
+                      iLP.setDeviceId(lastID)
+                      log.debug("No preferred device connected, using most recent one.")
+                      deviceSet = true
+                    }
+                  }
+                  if(!deviceSet)log.debug("Multiple devices found and none is in preferredDevices")
+              }
+            }//Don't do anything if no devices detected, maybe launcher will be luckier
+          case _ =>
+            log.debug("Launch parameters are not IOSDeviceLaunchParameters")
+        }
+
         val code = compiler.launch(launchParameters)
-        streams.value.log.debug("device task finished (exit code "+code+")")
+        log.debug("device task finished (exit code "+code+")")
       },
       iphoneSim := {
         val (config,compiler) = buildSimulatorTask(iphoneSim).value

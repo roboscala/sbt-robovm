@@ -30,6 +30,7 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val skipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior")
   val provisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
   val signingIdentity = settingKey[Option[String]]("Specify signing identity to use when signing iOS code.")
+  val preferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
 
