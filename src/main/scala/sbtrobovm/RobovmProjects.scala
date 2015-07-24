@@ -1,10 +1,16 @@
 package sbtrobovm
 
+import java.io.{IOException, StringReader}
+import java.util
+
+import org.apache.commons.io.FileUtils
+import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
-import org.robovm.compiler.config.Config.{Home, TargetType}
-import org.robovm.compiler.config.{Arch, Config, OS, Resource}
+import org.robovm.compiler.config.Config.TargetType
+import org.robovm.compiler.config.{Arch, Config, OS}
 import org.robovm.compiler.log.Logger
 import org.robovm.compiler.target.ios._
+import org.robovm.libimobiledevice.IDevice
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
@@ -12,258 +18,149 @@ import sbtrobovm.RobovmPlugin._
 
 object RobovmProjects {
 
-  object Standard {
-    private val build = TaskKey[BuildSettings]("_aux_build")
-    private val iosBuild = TaskKey[IosBuildSettings]("_aux_ios_build")
+  def configTask(arch: Def.Initialize[Option[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config.Builder] {
+    val st = streams.value
 
-    case class BuildSettings(
-                              executableName: String,
-                              properties: Option[Either[File, Map[String, String]]],
-                              configFile: Option[File],
-                              skipSigning: Option[Boolean],
-                              forceLinkClasses: Seq[String],
-                              frameworks: Seq[String],
-                              nativePath: Seq[File],
-                              fullClasspath: Classpath,
-                              unmanagedResources: Seq[File],
-                              skipPngCrush: Boolean,
-                              flattenResources: Boolean,
-                              mainClass: Option[String],
-                              distHome: Option[File],
-                              alternativeJars: Option[Seq[File]],
-                              debug: Boolean
-                              )
+    val builder = new Config.Builder()
 
-    case class IosBuildSettings(
-                                 sdkVersion: Option[String],
-                                 signIdentity: Option[String],
-                                 provisioningProfile: Option[String],
-                                 infoPlist: Option[File],
-                                 entitlementsPlist: Option[File],
-                                 resourceRulesPlist: Option[File]
-                                 )
-
-    def launchTask(arch: Arch, os: OS, targetType: TargetType, skipInstall: Boolean) = {
-      Def.task[Config] {
-        (compile in Compile).value
-        val t = target.value
-        val b = build.value
-        val ios = iosBuild.value
-        val st = streams.value
-
-        val robovmLogger = new Logger() {
-          def debug(s: String, o: java.lang.Object*) = {
-            if (b.debug) {
-              st.log.info(s.format(o: _*))
-            } else {
-              st.log.debug(s.format(o: _*))
-            }
-          }
-
-          def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o: _*))
-
-          def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o: _*))
-
-          def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o: _*))
+    builder.logger(new Logger() {
+      def debug(s: String, o: java.lang.Object*) = {
+        if (robovmVerbose.value) {
+          st.log.info(s.format(o: _*))
+        } else {
+          st.log.debug(s.format(o: _*))
         }
+      }
 
-        val builder = new Config.Builder()
+      def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o: _*))
 
-        builder.mainClass(b.mainClass.getOrElse("Main"))
-          .executableName(b.executableName)
-          .logger(robovmLogger)
+      def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o: _*))
 
-        b.distHome map { file =>
-          builder.home(new Config.Home(file))
+      def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o: _*))
+    })
+
+    builder.home(robovmHome.value)
+
+    robovmProperties.value match {
+      case Left(propertyFile) =>
+        st.log.debug("Including properties file: " + propertyFile.getAbsolutePath)
+        builder.addProperties(propertyFile)
+      case Right(propertyMap) =>
+        st.log.debug("Including embedded properties: " + propertyMap)
+        for ((key, value) <- propertyMap) {
+          builder.addProperty(key, value)
         }
+      case _ =>
+    }
 
-        b.properties match {
-          case Some(Left(file)) =>
-            st.log.debug("Including properties file: " + file.getAbsolutePath)
-            builder.addProperties(file)
-          case Some(Right(map)) =>
-            st.log.debug("Including properties: " + map)
-            for ((key, value) <- map) {
-              builder.addProperty(key, value)
-            }
-          case _ =>
-        }
+    robovmConfiguration.value match {
+      case Left(file) =>
+        st.log.debug("Loading config file: " + file.getAbsolutePath)
+        builder.read(file)
+      case Right(xml) =>
+        st.log.debug("Loading embedded xml configuration: "+xml)
+        builder.read(new StringReader(xml.toString()),baseDirectory.value)
+    }
 
-        b.configFile map { file =>
-          st.log.debug("Loading config file: " + file.getAbsolutePath)
-          builder.read(file)
-        }
+    builder.clearClasspathEntries()
+    robovmInputJars.value foreach { jarFile =>
+      st.log.debug("Adding input jar: " + jarFile)
+      builder.addClasspathEntry(jarFile)
+    }
 
-        b.forceLinkClasses foreach { pattern =>
-          st.log.debug("Including class pattern: " + pattern)
-          builder.addForceLinkClass(pattern)
-        }
+    //To make sure that options were not overrided, that would not work.
+    builder.skipInstall(skipInstall)
+    builder.targetType(targetType)
+    builder.os(os)
+    arch.value.foreach(builder.arch)
 
-        b.frameworks foreach { framework =>
-          st.log.debug("Including framework: " + framework)
-          builder.addFramework(framework)
-        }
+    val t = target.value
+    builder.installDir(t / "robovm")
+    val tmpDir = t / "robovm.tmp"
+    if(tmpDir.isDirectory){
+      try {
+        FileUtils.deleteDirectory(tmpDir)
+      } catch {
+        case io:IOException =>
+          st.log.error("Failed to clean temporary output directory "+tmpDir)
+          st.log.trace(io)
+      }
+    }
+    tmpDir.mkdirs()
+    builder.tmpDir(tmpDir)
 
-        val homeDir = file(".").getCanonicalPath.stripSuffix("/") + "/"
-        for (dir <- b.nativePath) {
-          if (dir.isDirectory) {
-            dir.listFiles foreach { lib =>
-              if (lib.isFile && !lib.isHidden) {
-                val libRelativePath = lib.getCanonicalPath.stripPrefix(homeDir)
-
-                st.log.debug("Including lib: " + libRelativePath)
-
-                builder.addLib(new Config.Lib(libRelativePath, true))
-              }
-            }
-          } else {
-            st.log.warn(s"Natives directory '${dir.getAbsolutePath}' doesn't exist.")
-          }
-        }
-
-        b.alternativeJars match {
-          case Some(alternativeFiles: Seq[File]) =>
-            alternativeFiles foreach { file =>
-              st.log.debug("Including alternative classpath item: " + file)
-              builder.addClasspathEntry(file)
-            }
-          case None =>
-            b.fullClasspath.map(i => i.data) foreach { file =>
-              st.log.debug("Including classpath item: " + file)
-              builder.addClasspathEntry(file)
-            }
-        }
-
-        b.unmanagedResources foreach { file =>
-          st.log.debug("Including resource: " + file)
-          val resource = new Resource(file)
-            .skipPngCrush(b.skipPngCrush)
-            .flatten(b.flattenResources)
-          builder.addResource(resource)
-        }
-
-        ios.sdkVersion map { version =>
-          st.log.debug("Using explicit iOS SDK version: " + version)
-          builder.iosSdkVersion(version)
-        }
-
-        ios.signIdentity map { identity =>
-          st.log.debug("Using explicit iOS Signing identity: " + identity)
-          builder.iosSignIdentity(SigningIdentity.find(SigningIdentity.list(), identity))
-        }
-
-        ios.provisioningProfile map { profile =>
-          st.log.debug("Using explicit iOS provisioning profile: " + profile)
-          builder.iosProvisioningProfile(ProvisioningProfile.find(ProvisioningProfile.list(), profile))
-        }
-
-        ios.infoPlist map { file =>
-          st.log.debug("Using Info.plist file: " + file.getAbsolutePath)
-          builder.iosInfoPList(file)
-        }
-
-        ios.entitlementsPlist map { file =>
-          st.log.debug("Using Entitlements.plist file: " + file.getAbsolutePath)
-          builder.iosEntitlementsPList(file)
-        }
-
-        ios.resourceRulesPlist map { file =>
-          st.log.debug("Using ResourceRules.plist file: " + file.getAbsolutePath)
-          builder.iosResourceRulesPList(file)
-        }
-
-        b.skipSigning foreach builder.iosSkipSigning
-
-        //To make sure that options were not overrided, that would not work.
-        builder.skipInstall(skipInstall)
-          .targetType(targetType)
-          .os(os)
-          .arch(arch)
-
-        builder.installDir(t)
-        builder.tmpDir(t / "native")
-
-        st.log.info("Compiling RoboVM app, this could take a while")
-        val config = builder.build()
-        val compiler = new AppCompiler(config)
-        compiler.compile()
-
-        st.log.info("RoboVM app compiled")
-        config
+    val enableRobovmDebug = robovmDebug.value
+    if(enableRobovmDebug){
+      st.log.info("RoboVM Debug is enabled")
+      builder.debug(true)
+      val debugPort = robovmDebugPort.value
+      if(debugPort != -1){
+        builder.addPluginArgument("debug:jdwpport=" + debugPort)
       }
     }
 
-    lazy val robovmSettings = Seq(
-      build := BuildSettings(executableName.value, robovmProperties.value, configFile.value, skipSigning.value, forceLinkClasses.value, frameworks.value, nativePath.value, (fullClasspath in Compile).value, robovmResources.value, skipPngCrush.value, flattenResources.value, (mainClass in(Compile, run)).value, distHome.value, alternativeInputJars.value, robovmDebug.value),
-      iosBuild <<= (iosSdkVersion, iosSignIdentity, iosProvisioningProfile, iosInfoPlist, iosEntitlementsPlist, iosResourceRulesPlist) map IosBuildSettings,
-      executableName := "RoboVM App",
-      forceLinkClasses := Seq.empty,
-      frameworks := Seq.empty,
-      nativePath := Seq.empty,
-      robovmResources := (unmanagedResources in Compile).value,
-      skipPngCrush := false,
-      flattenResources := false,
-      robovmProperties := None,
-      configFile := None,
-      skipSigning := None,
-      distHome := None,
-      alternativeInputJars := None,
-      iosSdkVersion := None,
-      iosSignIdentity := None,
-      iosProvisioningProfile := None,
-      iosInfoPlist := None,
-      iosEntitlementsPlist := None,
-      iosResourceRulesPlist := None,
-      simulatorDevice := None,
-      device := {
-        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = true).value
+    builder
+  }
 
-        val launchParameters = config.getTarget.createLaunchParameters()
-        config.getTarget.launch(launchParameters).waitFor()
-      },
-      iphoneSim := {
-        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+  def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[(Config, AppCompiler)] {
+    val st = streams.value
 
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPhone))
-        config.getTarget.launch(launchParameters).waitFor()
-      },
-      ipadSim := {
-        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+    val configBuilder = configBuilderTask.value
+    try{
+      configBuilder.write(target.value / "LastRobovm.xml")
+      st.log.debug("Written LastRobovm.xml (for debug)")
+    }catch {
+      case e:Exception =>
+        st.log.debug("Failed to write LastRobovm.xml (for debug) "+e)
+    }
+    val config = configBuilder.build()
 
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        launchParameters.setDeviceType(DeviceType.getBestDeviceType(config.getHome, DeviceType.DeviceFamily.iPad))
-        config.getTarget.launch(launchParameters).waitFor()
-      },
-      ipa := {
-        val config = launchTask(Arch.thumbv7, OS.ios, TargetType.ios, skipInstall = false).value
-        config.getTarget.asInstanceOf[IOSTarget].createIpa()
-      },
-      simulator := {
-        val simulatorDeviceName:String = simulatorDevice.value.getOrElse(sys.error("Define device kind name first. See simulator-device setting and simulator-devices task."))
-        val config = launchTask(Arch.x86, OS.ios, TargetType.ios, skipInstall = true).value
+    st.log.info("Compiling RoboVM app, this could take a while")
+    val compiler = new AppCompiler(config)
+    compiler.compile()
 
-        val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
-        val simDevice = DeviceType.getDeviceType(config.getHome, simulatorDeviceName)
-        if(simDevice == null)sys.error(s"""iOS simulator device "$simulatorDeviceName" not found.""")
-        launchParameters.setDeviceType(simDevice)
-        config.getTarget.launch(launchParameters).waitFor()
-      },
-      native := {
-        val config = launchTask(Arch.getDefaultArch, OS.getDefaultOS, TargetType.console, skipInstall = true).value
+    st.log.info("RoboVM app compiled")
+    (config, compiler)
+  }
 
-        val launchParameters = config.getTarget.createLaunchParameters()
-        config.getTarget.launch(launchParameters).waitFor()
-      },
-      robovmDebug := false,
-      simulatorDevices := {
-        val devices = DeviceType.getSimpleDeviceTypeIds(Home.find())
-        for(simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)){
-          println(simpleDevice)
-        }
-        println(devices.size()+" devices found.")
-      }
-    )
+  lazy val baseSettings = Seq(
+    robovmProperties := Right(
+      Map(
+        "app.name" -> name.value,
+        "app.executable" -> name.value.replace(" ",""),
+        "app.mainclass" -> {
+          val mainClassName = (mainClass in(Compile, run)).value.orElse((selectMainClass in Compile).value).getOrElse("")
+          streams.value.log.debug("Selected main class \""+mainClassName+"\"")
+          mainClassName
+        })
+    ),
+    robovmConfiguration := Right(
+      <config>
+        <executableName>${{app.executable}}</executableName>
+        <mainClass>${{app.mainclass}}</mainClass>
+        <resources>
+          <resource>
+            <directory>resources</directory>
+          </resource>
+        </resources>
+      </config>
+    ),
+    skipSigning := None,
+    robovmDebug := false,
+    robovmDebugPort := -1,
+    robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
+    robovmInputJars := (fullClasspath in Compile).value map (_.data),
+    robovmVerbose := false,
+    robovmTarget64bit := false,
+    robovmLicense := {
+      com.robovm.lm.LicenseManager.forkUI()
+    },
+    ivyConfigurations += ManagedNatives
+  )
+
+  trait RoboVMProject {
+
+    val projectSettings:Seq[Def.Setting[_]]
 
     def apply(
                id: String,
@@ -279,9 +176,210 @@ object RobovmProjects {
       aggregate,
       dependencies,
       delegates,
-      coreDefaultSettings ++ robovmSettings ++ settings,
+      coreDefaultSettings ++ baseSettings ++ projectSettings ++ settings,
       configurations
     )
   }
 
+  object iOSProject extends RoboVMProject {
+
+    val lastUsedDeviceFile = settingKey[File]("A file to save last used (non-preferred) device ID to. Can be null to disable this.")
+
+    def configIOSTask(configBuilderTask:Def.Initialize[Task[Config.Builder]], scope: Scoped) = Def.task[Config.Builder]{
+      val st = streams.value
+      val builder = configBuilderTask.value
+
+      (provisioningProfile in scope).value.foreach(name => {
+        val list = ProvisioningProfile.list()
+        try{
+          val profile = ProvisioningProfile.find(list,name)
+          builder.iosProvisioningProfile(profile)
+          st.log.debug("Using explicit provisioning profile: "+profile.toString)
+        }catch {
+          case _:IllegalArgumentException => // Not found
+            st.log.error("No provisioning profile identifiable with \""+name+"\" found. "+{
+              if(list.size() == 0){
+                "No profiles installed."
+              }else{
+                "Those were found: ("+list.size()+")"
+              }
+            })
+            for(i <- 0 until list.size()){
+              val profile = list.get(i)
+              st.log.error("\tName: "+profile.getName)
+              st.log.error("\t\tUUID: "+profile.getUuid)
+              st.log.error("\t\tAppID Prefix: "+profile.getAppIdPrefix)
+              st.log.error("\t\tAppID Name: "+profile.getAppIdName)
+              st.log.error("\t\tType: "+profile.getType)
+            }
+        }
+      })
+
+      val skipSign = skipSigning.value.exists(skip => skip) //Check if value is Some(true)
+
+      if(skipSign){
+        st.log.debug("Skipping signing.")
+        builder.iosSkipSigning(true)
+      }else{
+        (signingIdentity in scope).value.foreach(name => {
+          val list = SigningIdentity.list()
+          try{
+            val signIdentity = SigningIdentity.find(list,name)
+            builder.iosSignIdentity(signIdentity)
+            st.log.debug("Using explicit signing identity: "+signIdentity.toString)
+          }catch {
+            case _:IllegalArgumentException => // Not found
+              st.log.error("No signing identity identifiable with \""+name+"\" found. "+{
+                if(list.size() == 0){
+                  "No identities installed."
+                }else{
+                  "Those were found: ("+list.size()+")"
+                }
+              })
+              for(i <- 0 until list.size()){
+                val identity = list.get(i)
+                st.log.error("\tName: "+identity.getName)
+                st.log.error("\t\tFingerprint: "+identity.getFingerprint)
+              }
+          }
+        })
+      }
+
+      builder
+    }
+
+    private def simulatorArchitectureSetting(scope:Scoped) = Def.setting[Option[Arch]]{
+      Some(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
+    }
+
+    def buildSimulatorTask(scope:Scoped) = Def.task[(Config, AppCompiler)]{
+      buildTask(
+        configIOSTask(
+          configTask(simulatorArchitectureSetting(scope), OS.ios, TargetType.ios, skipInstall = true),
+          scope
+        )
+      ).value
+    }
+
+    def runSimulator(config:Config,compiler:AppCompiler, device:DeviceType):Int = {
+      val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+      launchParameters.setDeviceType(device)
+
+      //TODO Stdout and stderr fifos
+
+      compiler.launch(launchParameters)
+    }
+
+    private val deviceArchitectureSetting = Def.setting[Option[Arch]]{
+      Some(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
+    }
+
+    private val noArchitectureSetting = Def.setting[Option[Arch]]{None}
+
+    override lazy val projectSettings = Seq(
+      robovmSimulatorDevice := None,
+      provisioningProfile := None,
+      signingIdentity := None,
+      preferredDevices := Nil,
+      lastUsedDeviceFile := target.value / "LasuUsediOSDevice.txt",
+      device := {
+        val log = streams.value.log
+        val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true), device)).value
+
+        val launchParameters = config.getTarget.createLaunchParameters()
+
+        launchParameters match {
+          case iLP: IOSDeviceLaunchParameters =>
+            val prefDevices = preferredDevices.value
+            val lastUsedIDFile = lastUsedDeviceFile.value
+            val devices = IDevice.listUdids()
+            if (devices.length == 1) {
+              if(lastUsedDeviceFile != null && !prefDevices.contains(devices(0))){
+                //Save this device, in case of more becoming available later
+                FileUtils.write(lastUsedIDFile, devices(0), false)
+                log.debug("Saved the last used device ID")
+              }
+              iLP.setDeviceId(devices(0)) //So it does not have to be listed multiple times
+            }else if(devices.length > 1){
+              prefDevices.find(preferredDevice => devices.contains(preferredDevice)) match {
+                case Some(foundPreferredDeviceID) =>
+                  iLP.setDeviceId(foundPreferredDeviceID)
+                case None =>
+                  var deviceSet = false
+                  if(lastUsedIDFile != null && lastUsedIDFile.isFile){
+                    //No preferred device found, but there is last used ID file, let's try that
+                    val lastID = FileUtils.readFileToString(lastUsedIDFile)
+                    if(devices.contains(lastID)){
+                      iLP.setDeviceId(lastID)
+                      log.debug("No preferred device connected, using most recent one.")
+                      deviceSet = true
+                    }
+                  }
+                  if(!deviceSet)log.debug("Multiple devices found and none is in preferredDevices")
+              }
+            }//Don't do anything if no devices detected, maybe launcher will be luckier
+          case _ =>
+            log.debug("Launch parameters are not IOSDeviceLaunchParameters")
+        }
+
+        val code = compiler.launch(launchParameters)
+        log.debug("device task finished (exit code "+code+")")
+      },
+      iphoneSim := {
+        val (config,compiler) = buildSimulatorTask(iphoneSim).value
+        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone) //TODO Allow specifying SDK version and iPhone version?
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("iphoneSim task finished (exit code "+code+")")
+      },
+      ipadSim := {
+        val (config,compiler) = buildSimulatorTask(ipadSim).value
+        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad) //TODO Allow specifying SDK version and iPad version?
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("ipadSim task finished (exit code "+code+")")
+      },
+      ipa := {
+        val config = configIOSTask(configTask(noArchitectureSetting, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
+        val compiler = new AppCompiler(config)
+        val architectures = new util.ArrayList[Arch]()
+        architectures.add(Arch.thumbv7)
+        architectures.add(Arch.arm64)
+        compiler.createIpa(architectures)
+      },
+      simulator := {
+        val (config,compiler) = buildSimulatorTask(simulator).value
+
+        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
+        val device = DeviceType.getDeviceType(simulatorDeviceName)
+        if (device == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
+
+        val code = runSimulator(config, compiler, device)
+        streams.value.log.debug("simulator task finished (exit code "+code+")")
+      },
+      simulatorDevices := {
+        val devices = DeviceType.getSimpleDeviceTypeIds
+        for (simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)) {
+          println(simpleDevice)
+        }
+        println(devices.size() + " devices found.")
+      }
+    )
+
+  }
+
+  object NativeProject extends RoboVMProject {
+
+    val robovmTargetArchitecture = settingKey[Option[Arch]]("Architecture targeted by NativeProject")
+
+    override lazy val projectSettings = Seq(
+      robovmTargetArchitecture := Some(Arch.getDefaultArch),
+      native := {
+        val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
+
+        val launchParameters = config.getTarget.createLaunchParameters()
+        val code = compiler.launch(launchParameters)
+        streams.value.log.debug("native task finished (exit code "+code+")")
+      }
+    )
+    
+  }
 }
