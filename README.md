@@ -36,8 +36,8 @@ Set those settings directly in [robovm.xml](http://docs.robovm.com/configuration
 
 ```bash
 $ sbt ios/device
-$ sbt ios/iphone-sim
-$ sbt ios/ipad-sim
+$ sbt ios/iphoneSim
+$ sbt ios/ipadSim
 $ sbt ios/ipa
 $ sbt ios/simulator
 ```
