@@ -18,7 +18,7 @@ import sbtrobovm.RobovmPlugin._
 
 object RobovmProjects {
 
-  def configTask(arch: Def.Initialize[Option[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean) = Def.task[Config.Builder] {
+  def configTask(arch: Def.Initialize[Option[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
     val st = streams.value
 
     val builder = new Config.Builder()
@@ -89,13 +89,15 @@ object RobovmProjects {
     tmpDir.mkdirs()
     builder.tmpDir(tmpDir)
 
-    val enableRobovmDebug = robovmDebug.value
+    val enableRobovmDebug = (robovmDebug in scope).value
     if(enableRobovmDebug){
-      st.log.info("RoboVM Debug is enabled")
       builder.debug(true)
-      val debugPort = robovmDebugPort.value
+      val debugPort = (robovmDebugPort in scope).value
       if(debugPort != -1){
+        st.log.info("RoboVM Debug is enabled on port "+debugPort)
         builder.addPluginArgument("debug:jdwpport=" + debugPort)
+      }else{
+        st.log.warn("RoboVM Debug is enabled, but no port is specified!")
       }
     }
 
@@ -147,7 +149,9 @@ object RobovmProjects {
     ),
     skipSigning := None,
     robovmDebug := false,
+    robovmDebug in Debug := true,
     robovmDebugPort := -1,
+    robovmDebugPort in Debug := 5005,
     robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
@@ -157,6 +161,8 @@ object RobovmProjects {
     },
     ivyConfigurations += ManagedNatives
   )
+
+  lazy val Debug = config("debug")
 
   trait RoboVMProject {
 
@@ -169,7 +175,7 @@ object RobovmProjects {
                dependencies: => Seq[ClasspathDep[ProjectReference]] = Nil,
                delegates: => Seq[ProjectReference] = Nil,
                settings: => Seq[Def.Setting[_]] = Seq.empty,
-               configurations: Seq[Configuration] = Configurations.default
+               configurations: Seq[Configuration] = Configurations.default :+ Debug
                ) = Project(
       id,
       base,
@@ -185,7 +191,7 @@ object RobovmProjects {
 
     val lastUsedDeviceFile = settingKey[File]("A file to save last used (non-preferred) device ID to. Can be null to disable this.")
 
-    def configIOSTask(configBuilderTask:Def.Initialize[Task[Config.Builder]], scope: Scoped) = Def.task[Config.Builder]{
+    def configIOSTask(configBuilderTask:Def.Initialize[Task[Config.Builder]], scope: Scope) = Def.task[Config.Builder]{
       val st = streams.value
       val builder = configBuilderTask.value
 
@@ -248,14 +254,14 @@ object RobovmProjects {
       builder
     }
 
-    private def simulatorArchitectureSetting(scope:Scoped) = Def.setting[Option[Arch]]{
+    private def simulatorArchitectureSetting(scope:Scope) = Def.setting[Option[Arch]]{
       Some(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
     }
 
-    def buildSimulatorTask(scope:Scoped) = Def.task[(Config, AppCompiler)]{
+    def buildSimulatorTask(scope:Scope) = Def.task[(Config, AppCompiler)]{
       buildTask(
         configIOSTask(
-          configTask(simulatorArchitectureSetting(scope), OS.ios, TargetType.ios, skipInstall = true),
+          configTask(simulatorArchitectureSetting(scope), OS.ios, TargetType.ios, skipInstall = true, scope),
           scope
         )
       ).value
@@ -276,84 +282,84 @@ object RobovmProjects {
 
     private val noArchitectureSetting = Def.setting[Option[Arch]]{None}
 
+    private def deviceTask(scope:Scope) = Def.task[Unit]{
+      val log = streams.value.log
+      val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true, scope), device.scope)).value
+
+      val launchParameters = config.getTarget.createLaunchParameters()
+
+      launchParameters match {
+        case iLP: IOSDeviceLaunchParameters =>
+          val prefDevices = preferredDevices.value
+          val lastUsedIDFile = lastUsedDeviceFile.value
+          val devices = IDevice.listUdids()
+          if (devices.length == 1) {
+            if(lastUsedDeviceFile != null && !prefDevices.contains(devices(0))){
+              //Save this device, in case of more becoming available later
+              FileUtils.write(lastUsedIDFile, devices(0), false)
+              log.debug("Saved the last used device ID")
+            }
+            iLP.setDeviceId(devices(0)) //So it does not have to be listed multiple times
+          }else if(devices.length > 1){
+            prefDevices.find(preferredDevice => devices.contains(preferredDevice)) match {
+              case Some(foundPreferredDeviceID) =>
+                iLP.setDeviceId(foundPreferredDeviceID)
+              case None =>
+                var deviceSet = false
+                if(lastUsedIDFile != null && lastUsedIDFile.isFile){
+                  //No preferred device found, but there is last used ID file, let's try that
+                  val lastID = FileUtils.readFileToString(lastUsedIDFile)
+                  if(devices.contains(lastID)){
+                    iLP.setDeviceId(lastID)
+                    log.debug("No preferred device connected, using most recent one.")
+                    deviceSet = true
+                  }
+                }
+                if(!deviceSet)log.debug("Multiple devices found and none is in preferredDevices")
+            }
+          }//Don't do anything if no devices detected, maybe launcher will be luckier
+        case _ =>
+          log.debug("Launch parameters are not IOSDeviceLaunchParameters")
+      }
+
+      val code = compiler.launch(launchParameters)
+      log.debug("device task finished (exit code "+code+")")
+    }
+
+    private def simulatorTask(scope:Scope, deviceType: =>DeviceType) = Def.task[Unit]{
+      val device = if (deviceType != null) deviceType else {
+        val simulatorDeviceName: String = (robovmSimulatorDevice in scope).value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
+        val device = DeviceType.getDeviceType(simulatorDeviceName)
+        if (device == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
+        device
+      }
+      val (config,compiler) = buildSimulatorTask(scope).value
+      val code = runSimulator(config, compiler, device)
+      streams.value.log.debug("simulator task finished (exit code "+code+")")
+    }
+
     override lazy val projectSettings = Seq(
       robovmSimulatorDevice := None,
       provisioningProfile := None,
       signingIdentity := None,
       preferredDevices := Nil,
-      lastUsedDeviceFile := target.value / "LasuUsediOSDevice.txt",
-      device := {
-        val log = streams.value.log
-        val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true), device)).value
-
-        val launchParameters = config.getTarget.createLaunchParameters()
-
-        launchParameters match {
-          case iLP: IOSDeviceLaunchParameters =>
-            val prefDevices = preferredDevices.value
-            val lastUsedIDFile = lastUsedDeviceFile.value
-            val devices = IDevice.listUdids()
-            if (devices.length == 1) {
-              if(lastUsedDeviceFile != null && !prefDevices.contains(devices(0))){
-                //Save this device, in case of more becoming available later
-                FileUtils.write(lastUsedIDFile, devices(0), false)
-                log.debug("Saved the last used device ID")
-              }
-              iLP.setDeviceId(devices(0)) //So it does not have to be listed multiple times
-            }else if(devices.length > 1){
-              prefDevices.find(preferredDevice => devices.contains(preferredDevice)) match {
-                case Some(foundPreferredDeviceID) =>
-                  iLP.setDeviceId(foundPreferredDeviceID)
-                case None =>
-                  var deviceSet = false
-                  if(lastUsedIDFile != null && lastUsedIDFile.isFile){
-                    //No preferred device found, but there is last used ID file, let's try that
-                    val lastID = FileUtils.readFileToString(lastUsedIDFile)
-                    if(devices.contains(lastID)){
-                      iLP.setDeviceId(lastID)
-                      log.debug("No preferred device connected, using most recent one.")
-                      deviceSet = true
-                    }
-                  }
-                  if(!deviceSet)log.debug("Multiple devices found and none is in preferredDevices")
-              }
-            }//Don't do anything if no devices detected, maybe launcher will be luckier
-          case _ =>
-            log.debug("Launch parameters are not IOSDeviceLaunchParameters")
-        }
-
-        val code = compiler.launch(launchParameters)
-        log.debug("device task finished (exit code "+code+")")
-      },
-      iphoneSim := {
-        val (config,compiler) = buildSimulatorTask(iphoneSim).value
-        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone) //TODO Allow specifying SDK version and iPhone version?
-        val code = runSimulator(config, compiler, device)
-        streams.value.log.debug("iphoneSim task finished (exit code "+code+")")
-      },
-      ipadSim := {
-        val (config,compiler) = buildSimulatorTask(ipadSim).value
-        val device = DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad) //TODO Allow specifying SDK version and iPad version?
-        val code = runSimulator(config, compiler, device)
-        streams.value.log.debug("ipadSim task finished (exit code "+code+")")
-      },
+      lastUsedDeviceFile := target.value / "LastUsediOSDevice.txt",
+      device := deviceTask(device.scope).value,
+      device in Debug := deviceTask(device.scope.in(Debug)).value,
+      //TODO Allow specifying SDK version and device version in simulator tasks?
+      iphoneSim := simulatorTask(iphoneSim.scope, DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
+      iphoneSim in Debug := simulatorTask(iphoneSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
+      ipadSim := simulatorTask(ipadSim.scope, DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
+      ipadSim in Debug := simulatorTask(ipadSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
+      simulator := simulatorTask(simulator.scope, null).value,
+      simulator in Debug := simulatorTask(simulator.scope.in(Debug), null).value,
       ipa := {
-        val config = configIOSTask(configTask(noArchitectureSetting, OS.ios, TargetType.ios, skipInstall = false), ipa).value.build()
+        val config = configIOSTask(configTask(noArchitectureSetting, OS.ios, TargetType.ios, skipInstall = false, ipa.scope), ipa.scope).value.build()
         val compiler = new AppCompiler(config)
         val architectures = new util.ArrayList[Arch]()
         architectures.add(Arch.thumbv7)
         architectures.add(Arch.arm64)
         compiler.createIpa(architectures)
-      },
-      simulator := {
-        val (config,compiler) = buildSimulatorTask(simulator).value
-
-        val simulatorDeviceName: String = robovmSimulatorDevice.value.getOrElse(sys.error("Define device kind name first. See robovmSimulatorDevice setting and simulatorDevices task."))
-        val device = DeviceType.getDeviceType(simulatorDeviceName)
-        if (device == null) sys.error( s"""iOS simulator device "$simulatorDeviceName" not found.""")
-
-        val code = runSimulator(config, compiler, device)
-        streams.value.log.debug("simulator task finished (exit code "+code+")")
       },
       simulatorDevices := {
         val devices = DeviceType.getSimpleDeviceTypeIds
@@ -370,15 +376,19 @@ object RobovmProjects {
 
     val robovmTargetArchitecture = settingKey[Option[Arch]]("Architecture targeted by NativeProject")
 
+    private def nativeTask(scope:Scope) = Def.task[Unit]{
+      val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, TargetType.console, skipInstall = true, scope)).value
+
+      val launchParameters = config.getTarget.createLaunchParameters()
+      val code = compiler.launch(launchParameters)
+      streams.value.log.debug("native task finished (exit code "+code+")")
+    }
+
+
     override lazy val projectSettings = Seq(
       robovmTargetArchitecture := Some(Arch.getDefaultArch),
-      native := {
-        val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, TargetType.console, skipInstall = true)).value
-
-        val launchParameters = config.getTarget.createLaunchParameters()
-        val code = compiler.launch(launchParameters)
-        streams.value.log.debug("native task finished (exit code "+code+")")
-      }
+      native := nativeTask(native.scope),
+      native in Debug := nativeTask(native.scope.in(Debug))
     )
     
   }
