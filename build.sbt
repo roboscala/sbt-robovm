@@ -1,28 +1,23 @@
-name := "sbt-robovm"
-
-organization := "org.roboscala"
+import sbt._
+import Keys._
+import bintray._
 
 val roboVersion = "1.6.0" //When changing, change also RoboVMVersion in sbtrobovm.RobovmPlugin
 
-version := roboVersion + "-SNAPSHOT"
-
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings")
-
-javacOptions ++= Seq("-source","6","-target","6")
-
-publishMavenStyle := false
-
-publishTo := {
-  val scalasbt = "http://repo.scala-sbt.org/scalasbt/"
-  val (name, url) = if (version.value.contains("-SNAPSHOT"))
-    ("sbt-plugin-snapshots", scalasbt+"sbt-plugin-snapshots")
-  else
-    ("sbt-plugin-releases", scalasbt+"sbt-plugin-releases")
-  Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
-}
-
-libraryDependencies += "org.robovm" % "robovm-dist-compiler" % roboVersion
-
-libraryDependencies += "org.robovm" % "robovm-maven-resolver" % roboVersion
-
-sbtPlugin := true
+val sbtRoboVM = Project(
+  id = "sbt-robovm",
+  base = file("."),
+  settings = Defaults.defaultSettings ++ Seq(
+    licenses += ("BSD 3-Clause", url("http://opensource.org/licenses/BSD-3-Clause")),
+    organization := "org.roboscala",
+    version := roboVersion,
+    sbtPlugin := true,
+    publishMavenStyle := false,
+    bintrayOrganization := None,
+    bintrayRepository := "sbt-plugins",
+    scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings"),
+    javacOptions ++= Seq("-source","6","-target","6"),
+    libraryDependencies += "org.robovm" % "robovm-dist-compiler" % roboVersion,
+    libraryDependencies += "org.robovm" % "robovm-maven-resolver" % roboVersion
+  )
+)

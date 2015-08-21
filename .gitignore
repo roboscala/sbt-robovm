@@ -6,4 +6,3 @@ project/plugins/project/
 .DS_Store
 .idea
 .idea_modules
-/project/plugins.sbt
