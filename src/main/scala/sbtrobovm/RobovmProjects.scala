@@ -1,14 +1,13 @@
 package sbtrobovm
 
 import java.io.{IOException, StringReader}
-import java.util
 
 import org.apache.commons.io.FileUtils
 import org.jboss.shrinkwrap.resolver.api.SBTRoboVMResolver
 import org.robovm.compiler.AppCompiler
-import org.robovm.compiler.config.Config.TargetType
 import org.robovm.compiler.config.{Arch, Config, OS}
 import org.robovm.compiler.log.Logger
+import org.robovm.compiler.target.ConsoleTarget
 import org.robovm.compiler.target.ios._
 import org.robovm.libimobiledevice.IDevice
 import sbt.Defaults._
@@ -18,7 +17,9 @@ import sbtrobovm.RobovmPlugin._
 
 object RobovmProjects {
 
-  def configTask(arch: Def.Initialize[Option[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
+  type TargetType = String
+
+  def configTask(arch: Def.Initialize[Array[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
     val st = streams.value
 
     val builder = new Config.Builder()
@@ -72,7 +73,7 @@ object RobovmProjects {
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
     builder.os(os)
-    arch.value.foreach(builder.arch)
+    builder.archs(arch.value:_*)
 
     val t = target.value
     builder.installDir(t / "robovm")
@@ -119,7 +120,7 @@ object RobovmProjects {
 
     st.log.info("Compiling RoboVM app, this could take a while")
     val compiler = new AppCompiler(config)
-    compiler.compile()
+    compiler.build()
 
     st.log.info("RoboVM app compiled")
     (config, compiler)
@@ -254,14 +255,14 @@ object RobovmProjects {
       builder
     }
 
-    private def simulatorArchitectureSetting(scope:Scope) = Def.setting[Option[Arch]]{
-      Some(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
+    private def simulatorArchitectureSetting(scope:Scope) = Def.setting[Array[Arch]]{
+      Array(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
     }
 
     def buildSimulatorTask(scope:Scope) = Def.task[(Config, AppCompiler)]{
       buildTask(
         configIOSTask(
-          configTask(simulatorArchitectureSetting(scope), OS.ios, TargetType.ios, skipInstall = true, scope),
+          configTask(simulatorArchitectureSetting(scope), OS.ios, IOSTarget.TYPE, skipInstall = true, scope),
           scope
         )
       ).value
@@ -276,15 +277,15 @@ object RobovmProjects {
       compiler.launch(launchParameters)
     }
 
-    private val deviceArchitectureSetting = Def.setting[Option[Arch]]{
-      Some(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
+    private val deviceArchitectureSetting = Def.setting[Array[Arch]]{
+      Array(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
     }
 
-    private val noArchitectureSetting = Def.setting[Option[Arch]]{None}
+    private val ipaArchitectureSetting = Def.setting[Array[Arch]]{Array(Arch.thumbv7, Arch.arm64)}
 
     private def deviceTask(scope:Scope) = Def.task[Unit]{
       val log = streams.value.log
-      val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, TargetType.ios, skipInstall = true, scope), device.scope)).value
+      val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
 
       val launchParameters = config.getTarget.createLaunchParameters()
 
@@ -354,12 +355,8 @@ object RobovmProjects {
       simulator := simulatorTask(simulator.scope, null).value,
       simulator in Debug := simulatorTask(simulator.scope.in(Debug), null).value,
       ipa := {
-        val config = configIOSTask(configTask(noArchitectureSetting, OS.ios, TargetType.ios, skipInstall = false, ipa.scope), ipa.scope).value.build()
-        val compiler = new AppCompiler(config)
-        val architectures = new util.ArrayList[Arch]()
-        architectures.add(Arch.thumbv7)
-        architectures.add(Arch.arm64)
-        compiler.createIpa(architectures)
+        val (_, compiler) = buildTask(configIOSTask(configTask(ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
+        compiler.archive()
       },
       simulatorDevices := {
         val devices = DeviceType.getSimpleDeviceTypeIds
@@ -374,10 +371,10 @@ object RobovmProjects {
 
   object NativeProject extends RoboVMProject {
 
-    val robovmTargetArchitecture = settingKey[Option[Arch]]("Architecture targeted by NativeProject")
+    val robovmTargetArchitecture = settingKey[Array[Arch]]("Architecture(s) targeted by NativeProject")
 
     private def nativeTask(scope:Scope) = Def.task[Unit]{
-      val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, TargetType.console, skipInstall = true, scope)).value
+      val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, ConsoleTarget.TYPE, skipInstall = true, scope)).value
 
       val launchParameters = config.getTarget.createLaunchParameters()
       val code = compiler.launch(launchParameters)
@@ -386,9 +383,9 @@ object RobovmProjects {
 
 
     override lazy val projectSettings = Seq(
-      robovmTargetArchitecture := Some(Arch.getDefaultArch),
-      native := nativeTask(native.scope),
-      native in Debug := nativeTask(native.scope.in(Debug))
+      robovmTargetArchitecture := Array(Arch.getDefaultArch),
+      native := nativeTask(native.scope).value,
+      native in Debug := nativeTask(native.scope.in(Debug)).value
     )
     
   }

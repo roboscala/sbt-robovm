@@ -6,7 +6,7 @@ import sbt._
 import scala.xml.Elem
 
 object RobovmPlugin extends Plugin with RobovmUtils {
-  val RoboVMVersion = "1.5.0"
+  val RoboVMVersion = "1.6.0"
 
   /* General settings and tasks */
   val robovmHome = taskKey[Config.Home]("Return the home of RoboVM installation. Will download to local maven repository by default.")
@@ -33,6 +33,7 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val preferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
+  //TODO Add task to build only (without running) https://github.com/robovm/robovm-gradle-plugin/commit/c92f7de04d85a00cd20743babdaa12f5a007def8
 
   /* Tools */
   val robovmLicense = taskKey[Unit]("Launch UI for entering a RoboVM license key.")
