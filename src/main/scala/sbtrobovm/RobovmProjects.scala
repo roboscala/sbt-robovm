@@ -373,19 +373,26 @@ object RobovmProjects {
 
     val robovmTargetArchitecture = settingKey[Array[Arch]]("Architecture(s) targeted by NativeProject")
 
-    private def nativeTask(scope:Scope) = Def.task[Unit]{
+    private def nativeTask(scope:Scope, buildOnly:Boolean) = Def.task[Unit]{
       val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, ConsoleTarget.TYPE, skipInstall = true, scope)).value
 
-      val launchParameters = config.getTarget.createLaunchParameters()
-      val code = compiler.launch(launchParameters)
-      streams.value.log.debug("native task finished (exit code "+code+")")
+      if(buildOnly){
+        compiler.install()
+        streams.value.log.debug("nativeBuild task finished")
+      }else{
+        val launchParameters = config.getTarget.createLaunchParameters()
+        val code = compiler.launch(launchParameters)
+        streams.value.log.debug("native task finished (exit code "+code+")")
+      }
     }
 
 
     override lazy val projectSettings = Seq(
       robovmTargetArchitecture := Array(Arch.getDefaultArch),
-      native := nativeTask(native.scope).value,
-      native in Debug := nativeTask(native.scope.in(Debug)).value
+      native := nativeTask(native.scope, buildOnly = false).value,
+      native in Debug := nativeTask(native.scope.in(Debug), buildOnly = false).value,
+      nativeBuild := nativeTask(native.scope, buildOnly = true).value,
+      nativeBuild in Debug := nativeTask(native.scope.in(Debug), buildOnly = true).value
     )
     
   }
