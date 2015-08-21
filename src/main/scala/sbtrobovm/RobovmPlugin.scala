@@ -33,7 +33,7 @@ object RobovmPlugin extends Plugin with RobovmUtils {
   val preferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
-  //TODO Add task to build only (without running) https://github.com/robovm/robovm-gradle-plugin/commit/c92f7de04d85a00cd20743babdaa12f5a007def8
+  val nativeBuild = taskKey[Unit]("Compile and archive for distribution as native application")
 
   /* Tools */
   val robovmLicense = taskKey[Unit]("Launch UI for entering a RoboVM license key.")
