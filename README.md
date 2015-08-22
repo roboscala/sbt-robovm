@@ -1,5 +1,4 @@
-sbt-robovm
-==========
+# sbt-robovm
 
 sbt-robovm is a plugin for the Scala build tool that aims to make it as simple as possible to compile Scala (and Java) code to binaries for iOS, linux, and OSX using [RoboVM](http://www.robovm.org/)
 
@@ -10,17 +9,18 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 1. Install [sbt](http://www.scala-sbt.org/release/docs/Getting-Started/Setup.html)
 1. See [roboscala-samples](https://github.com/roboscala/roboscala-samples) for example on how to use and configure
 
-## Usage
+## Add the Plugin
 
-First, add the plugin into your project by adding `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.0")`
-into `project/plugins.sbt`. file. _(The file name (not extension) may actually be different, but such is the convention)_
-This plugins version is in sync with RoboVM version, so it is always clear which RoboVM you end up using.
+First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.0")`
+into the `project/plugins.sbt` file. _The file name (not extension) may actually be different, but such is the convention_
+The plugin's version is in sync with the RoboVM version it uses, so it should always be clear which RoboVM is being used.
 
-### Project Creation
+## Project Creation
 
-To use the plugin, you have to create a [.scala build file](http://www.scala-sbt.org/0.13/tutorial/Full-Def.html)
-and define what kind of project you are creating.
-When building an iOS app (you probably are), define the project as follows _(example `project/MyBuild.scala` file)_:
+To use the plugin, you must create a [.scala build file](http://www.scala-sbt.org/0.13/tutorial/Full-Def.html)
+and define what kind of project you are creating. The file can be named anything, for example `project/MyBuild.scala`.
+
+When building an iOS app:
 
 ```scala
 import sbt.Keys._
@@ -36,44 +36,43 @@ object MyBuild extends Build {
 
 If you are, on the other hand, creating a native console application, use `NativeProject` instead of `iOSProject`.
 
-### Tasks
+## Tasks
 
 There are different tasks defined for iOS and native console projects.
 
-#### iOS Tasks
-
-* `iphoneSim` and `ipadSim`
-	* Runs the application in iPhone and iPad simulator, respectively
-* `simulator`
-	* Runs the application on the simulator specified by `robovmSimulatorDevice` setting
-* `device`
-	* Runs the app on the connected device
-	* If you are working with multiple devices, there are two mechanisms at play: it is possible to specify the order of preference of devices using `preferredDevices` task. When not specified, plugin will attempt to connect to last device it was connected to.
-* `ipa`
-	* Creates the .ipa archive for upload to the App Store or other distribution
-	* Both 32 and 64 bit slices are created automatically
-* `simulatorDevices`
-	* Prints all installed simulator devices
-
-#### Native Tasks
-
-* `native`
-	* Runs the native console application
-	* Connecting the input to interactive apps is not implemented. Recommended workaround is to execute compiled binary (in target/robovm/) in separate Terminal window.
-* `nativeBuild`
-	* Same as above, but does not execute the binary, only builds the app
-	
-#### Shared Tasks
+### Shared
 
 * `robovmLicense`
-	* Allows you to enter your [RoboVM license key](http://robovm.com/pricing/) to get access to premium features, such as line numbers in stack traces and debugger support _(interface builder integration is not yet implemented in this plugin)_
+	* Allows you to enter your [RoboVM license key](http://robovm.com/pricing/) to get access to premium features, such as line numbers in stack traces and debugger support.
 
-### Settings
+### iOS
 
-As with tasks, there are some settings, that are only meaningful in iOS projects.
-Some settings are actually implemented as tasks.
+* `iphoneSim` and `ipadSim`
+	* Build and run the app in a iPhone or iPad simulator, respectively.
+* `simulator`
+	* Build and run the app on a simulator specified by the `robovmSimulatorDevice` setting.
+* `device`
+	* Build and run the app on a connected device.
+	* It is possible to specify the order of preference of devices using the `preferredDevices` task.
+	* Otherwise, the plugin will attempt to connect to the last device it has used.
+* `ipa`
+	* Create the .ipa archive for upload to the App Store or other distribution.
+* `simulatorDevices`
+	* Print all installed simulator devices.
 
-#### Shared
+### Native
+
+* `native`
+	* Build and run a native console application.
+	* Connecting the input to interactive apps is not implemented. Recommended workaround is to execute compiled binary (in target/robovm/) in separate Terminal window.
+* `nativeBuild`
+	* Same as `native`, but does not execute the binary.
+	
+## Settings
+
+As with tasks, there are some settings that are only meaningful in iOS projects. Some settings are actually implemented as tasks.
+
+### Shared
 
 * `robovmConfiguration` _Either[File,Elem]_
 	* The most important key, specifies the configuration of your app, the [**robovm.xml**](http://docs.robovm.com/configuration.html) file
@@ -108,8 +107,7 @@ Some settings are actually implemented as tasks.
 * `robovmDebugPort` _Int_
 	* Port on which RoboVM debugger will listen (when enabled, see `robovmDebug`)
 
-
-#### iOS Only
+### iOS Only
 
 * `provisioningProfile` _Option[String]_
 	* Specify provisioning profile to use when signing iOS code
@@ -127,7 +125,7 @@ Some settings are actually implemented as tasks.
 * `preferredDevices` _Seq[String]_
 	* List of iOS device ID's listed in the priority in which you want to connect to them if multiple devices are connected
 	
-### Debugging
+## Debugging
 
 Line numbers will be enabled automatically when the license is entered (see `robovmLicense` task).
 
@@ -137,15 +135,15 @@ Running with the debugger enabled will allow you to connect to a running applica
 
 ### Tips
 
-* All paths in configuration are relative to the base directory (one up from your Build.scala)
-* During typical development, one usually ends up with two pairs of signing identity and profile, one for development and one for deployment. It is possible to scope the `signingIdentity/Profile` keys to automatically use the deployment pair when building an ipa:
+* All paths in the configuration are relative to the base directory.
+* During typical development, you usually ends up with two pairs of signing identity and profile, one for development and one for deployment. It is possible to scope the `signingIdentity/Profile` keys to automatically use the deployment pair when building an ipa:
 ```scala
 provisioningProfile := Some("name of development profile"),
 signingIdentity := Some("name of development identity"),
 provisioningProfile in ipa := Some("name of distribution profile"),
 signingIdentity in ipa := Some("name of distribution identity")
 ```
-* You can download simulators for more iOS versions in Xcode. (Xcode includes only the latest iOS simulator by default)
+* You can download simulators for more iOS versions in Xcode. Xcode includes only the latest iOS simulator by default.
 * The first time you try to compile a program, RoboVM must compile the Java and Scala standard libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
 * If you are having issues after installing Xcode, open Xcode and agree to the license or open a Terminal and run xcrun.
 
