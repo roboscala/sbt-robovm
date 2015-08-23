@@ -127,6 +127,7 @@ object RobovmProjects {
   }
 
   lazy val baseSettings = Seq(
+    resolvers ++= {if (RoboVMVersion.contains("-SNAPSHOT")) Seq(Resolver.sonatypeRepo("snapshots")) else Seq()},
     robovmProperties := Right(
       Map(
         "app.name" -> name.value,
