@@ -157,6 +157,14 @@ $ cd sbt-robovm
 $ sbt publish-local
 ```
 
+Then in your project/plugins.sbt file:
+
+```scala
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT")
+```
+
 ### Contributing
 
 Reporting any issues you encounter helps. If you want to help improving the plugin, feel free to make a PR.
