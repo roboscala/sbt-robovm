@@ -1,6 +1,5 @@
+import sbt.Keys._
 import sbt._
-import Keys._
-import bintray._
 
 lazy val roboVMVersion = settingKey[String]("RoboVM Version against which this plugin is built")
 
@@ -17,7 +16,7 @@ lazy val sbtRoboVM = (project in file(".")).
     bintrayOrganization := None,
     bintrayRepository := "sbt-plugins",
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings"),
-    javacOptions ++= Seq("-source","6","-target","6"),
+    javacOptions ++= Seq("-source", "6", "-target", "6"),
     resolvers ++= {if (roboVMVersion.value.contains("-SNAPSHOT")) Seq(Resolver.sonatypeRepo("snapshots")) else Seq()},
     libraryDependencies += "org.robovm" % "robovm-dist-compiler" % roboVMVersion.value,
     libraryDependencies += "org.robovm" % "robovm-maven-resolver" % roboVMVersion.value,
