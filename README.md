@@ -158,6 +158,24 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT")
 ```
 
+When testing the changes, it may be useful to publish (locally) with different version than default,
+to be sure that the changes really take place. To do that, int build.sbt change line:
+```scala
+    version := roboVMVersion.value,
+```
+to:
+```scala
+    version := roboVMVersion.value + "-YOUR_SUFFIX",
+```
+
+And the project/plugins.sbt of your project to:
+```scala
+// Relevant when testing with RoboVM snapshot build
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT-YOUR_SUFFIX" changing())
+```
+
 ### Contributing
 
 Reporting any issues you encounter helps. If you want to help improving the plugin, feel free to make a PR.
