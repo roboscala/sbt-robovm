@@ -136,7 +136,7 @@ Running with the debugger enabled will allow you to connect to a running applica
 ### Tips
 
 * All paths in the configuration are relative to the base directory.
-* During typical development, you usually ends up with two pairs of signing identity and profile, one for development and one for deployment. It is possible to scope the `signingIdentity/Profile` keys to automatically use the deployment pair when building an ipa:
+* During typical development, you usually end up with two pairs of signing identity and profile, one for development and one for distribution. It is possible to scope the `signingIdentity/Profile` keys to automatically use the distribution pair when building an ipa:
 ```scala
 provisioningProfile := Some("name of development profile"),
 signingIdentity := Some("name of development identity"),
@@ -154,7 +154,7 @@ If you need to make modifications to the plugin itself, you can compile and inst
 ```bash
 $ git clone git://github.com/roboscala/sbt-robovm.git
 $ cd sbt-robovm
-$ sbt publish-local
+$ sbt +publish-local
 ```
 
 Then in your project/plugins.sbt file:
