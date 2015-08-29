@@ -1,6 +1,3 @@
-import sbt.Keys._
-import sbt._
-
 lazy val roboVMVersion = settingKey[String]("RoboVM Version against which this plugin is built")
 
 lazy val sbtRoboVM = (project in file(".")).
