@@ -133,6 +133,17 @@ To use the RoboVM debugger, prefix your task invocations with `debug:` (example:
 This sets the scope to the `Debug` configuration, in which the debugger is enabled and the debug port is set, by default to 5005.
 Running with the debugger enabled will allow you to connect to a running application with a java debugger.
 
+### Using the debugger from IntelliJ IDEA 14
+
+1. Create a new "Remote" Run/Debug configuration
+    - Top bar, right next to the "Make" button -> "Edit configurations" -> "+" -> "Remote"
+    - All settings can be left to their default values
+1. Run the project in debug mode from SBT (for example `$ sbt debug:ipadSim`)
+1. Make sure the configuration from step 1 is selected and press the "Debug" button
+1. IntelliJ will connect to the running application and you can start debugging like you are used to with standard Java debugging
+
+Application execution will pause before your `main` method and wait for the debugger to attach. Then it will continue normally.
+
 ### Tips
 
 * All paths in the configuration are relative to the base directory.
