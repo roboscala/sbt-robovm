@@ -2,6 +2,7 @@ package sbtrobovm
 
 import org.robovm.compiler.config.Config
 import sbt._
+import sbtrobovm.interfacebuilder.{RobovmInterfaceBuilder, IBIntegratorProxy}
 
 import scala.xml.Elem
 
@@ -9,6 +10,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val RoboVMVersion:String = BuildInfo.roboVMVersion
 
   /* General settings and tasks */
+  /** It is a task, because `streams` is a task. */
   val robovmHome = taskKey[Config.Home]("Return the home of RoboVM installation. Will download to local maven repository by default.")
   val robovmInputJars = taskKey[Seq[File]]("Jars fed into RoboVM compiler. fullClasspath in compile by default.")
   val robovmVerbose = settingKey[Boolean]("Propagates robovm Debug messages to Info level, to be visible")
@@ -18,6 +20,12 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmDebugPort = settingKey[Int]("Port on which debugger will listen (when enabled)")
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
   val robovmTarget64bit = settingKey[Boolean]("Whether to build 64bit executables")
+  //Internal
+  /** It is a task, because `streams` is a task. */
+  val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
+  /** It is a task, because `streams` is a task. */
+  val robovmIBIntegrator = taskKey[Option[IBIntegratorProxy]]("Retrieve InterfaceBuilder integrator")
+  val robovmIBDirectory = settingKey[File]("Folder in which the InterfaceBuilder integration creates XCode files")
 
   /* Specific settings and tasks */
   // iOS Only
@@ -26,6 +34,10 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val iphoneSim = taskKey[Unit]("Start package on iphone simulator")
   val ipadSim = taskKey[Unit]("Start package on ipad simulator")
   val ipa = taskKey[Unit]("Create an ipa file for the app store")
+
+  val robovmIBStart = taskKey[Unit]("Starts the Interface Builder integration daemon")
+  val robovmIBOpen = taskKey[Unit]("Opens the iOS project in XCode's Interface Builder")
+  val robovmIBScope = settingKey[Scope]("Scope in which run IB tasks")
 
   val robovmSkipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior")
   val robovmProvisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
@@ -61,6 +73,9 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val ipadSim = RobovmPlugin.ipadSim
     val ipa = RobovmPlugin.ipa
 
+    val robovmIBStart = RobovmPlugin.robovmIBStart
+    val robovmIBOpen = RobovmPlugin.robovmIBOpen
+
     val robovmSkipSigning = RobovmPlugin.robovmSkipSigning
     val robovmProvisioningProfile = RobovmPlugin.robovmProvisioningProfile
     val robovmSigningIdentity = RobovmPlugin.robovmSigningIdentity
@@ -75,7 +90,8 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val simulatorDevices = RobovmPlugin.simulatorDevices
 
     //Settings
-    val iOSRoboVMSettings = RobovmProjects.baseSettings ++ RobovmProjects.iOSProjectSettings
+    val iOSRoboVMSettings = RobovmProjects.baseSettings ++ RobovmProjects.iOSProjectSettings ++
+                            RobovmInterfaceBuilder.ibIntegrationSettings
     val nativeRoboVMSettings = RobovmProjects.baseSettings ++ RobovmProjects.nativeProjectSettings
   }
 
