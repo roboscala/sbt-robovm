@@ -35,8 +35,6 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val ipadSim = taskKey[Unit]("Start package on ipad simulator")
   val ipa = taskKey[Unit]("Create an ipa file for the app store")
 
-  val robovmIBStart = taskKey[Unit]("Starts the Interface Builder integration daemon")
-  val robovmIBOpen = taskKey[Unit]("Opens the iOS project in XCode's Interface Builder")
   val robovmIBScope = settingKey[Scope]("Scope in which run IB tasks")
 
   val robovmSkipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior")
@@ -72,9 +70,6 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val iphoneSim = RobovmPlugin.iphoneSim
     val ipadSim = RobovmPlugin.ipadSim
     val ipa = RobovmPlugin.ipa
-
-    val robovmIBStart = RobovmPlugin.robovmIBStart
-    val robovmIBOpen = RobovmPlugin.robovmIBOpen
 
     val robovmSkipSigning = RobovmPlugin.robovmSkipSigning
     val robovmProvisioningProfile = RobovmPlugin.robovmProvisioningProfile

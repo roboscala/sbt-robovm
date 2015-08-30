@@ -27,7 +27,8 @@ class IBIntegratorProxy private (private val log:Logger) {
     //println("Invoking "+method+"("+parameters.mkString(", ")+")")
     val result = Try(IBIntegratorProxy.integratorClass.getMethod(method, types:_*).invoke(instance, parameters:_*))
     if(result.isFailure){
-      println("IBIntegratorProxy: Failed to invoke method %s: %s", method, result.asInstanceOf[Failure[_]].exception)
+      System.err.println("IBIntegratorProxy: Failed to invoke method "+method+":")
+      result.asInstanceOf[Failure[_]].exception.printStackTrace(System.err)
     }
     result.getOrElse(null).asInstanceOf[T]
   }
@@ -37,7 +38,8 @@ class IBIntegratorProxy private (private val log:Logger) {
     //println("Invoking "+method+"("+parameters.mkString(", ")+")")
     val result = Try(IBIntegratorProxy.integratorClass.getMethod(method, parameters.map(_.getClass):_*).invoke(instance, parameters:_*))
     if(result.isFailure){
-      println("IBIntegratorProxy: Failed to invoke method %s: %s", method, result.asInstanceOf[Failure[_]].exception)
+      System.err.println("IBIntegratorProxy: Failed to invoke method "+method+":")
+      result.asInstanceOf[Failure[_]].exception.printStackTrace(System.err)
     }
     result.getOrElse(null).asInstanceOf[T]
   }

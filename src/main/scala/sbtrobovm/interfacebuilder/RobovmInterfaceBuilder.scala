@@ -7,6 +7,7 @@ import org.robovm.compiler.target.ios.IOSTarget
 import sbt.CommandUtil._
 import sbt.Keys._
 import sbt._
+import sbt.complete.DefaultParsers._
 import sbtrobovm.RobovmPlugin._
 import sbtrobovm.RobovmProjects
 
@@ -61,8 +62,10 @@ object RobovmInterfaceBuilder {
           val sourceFolders = new util.HashSet[File]()
 
           (exportedProducts in (Compile, robovmIBIntegrator)).value.foreach(f => {
-            classpath.add(f.data)
-            sourceFolders.add(f.data)
+            if(f.data.isDirectory){
+              classpath.add(f.data)
+              sourceFolders.add(f.data)
+            }
           })
 
           result.setClasspath(classpath)
@@ -71,78 +74,127 @@ object RobovmInterfaceBuilder {
           val resourceFolders = new util.HashSet[File]()
           configuration.getResources.asScala.foreach(r => {
             val dir = r.getDirectory
-            resourceFolders.add(dir)
+            if(dir.isDirectory){
+              resourceFolders.add(dir)
+            }
           })
           result.setResourceFolders(resourceFolders)
 
-          result.setInfoPlist(configuration.getInfoPList.getFile)
+
+          val infoPList = configuration.getInfoPList
+          if(infoPList != null && infoPList.getFile.isFile) result.setInfoPlist(infoPList.getFile)
       }
 
       integratorProxy
-    },
-    robovmIBStart := {
-      robovmIBIntegrator.value match {
-        case Some(_) =>
-          println("Interface Builder Daemon is running")
-        case None =>
-          println("Interface Builde Daemon could not be started")
-      }
-    },
-    robovmIBOpen := {
-      robovmIBIntegrator.value.collect {
-        case integrator =>
-          integrator.openProject()
-      }
     },
     robovmIBScope := ThisScope,
     commands += RobovmInterfaceBuilder.interfaceBuilderCommand
   )
 
-  lazy val interfaceBuilderCommand = Command.command("interfaceBuilder"){state =>
+  /**
+   * @return Trimmed line of entered input or null if no input available
+   */
+  private def readStdInput():String = {
+    if(System.in.available() <= 0)return null
+    //Read a line of input
+    val commandSB = new java.lang.StringBuilder
+    var char:Int = 0
+    do {
+      char = System.in.read()
+      commandSB.appendCodePoint(char)
+    } while(System.in.available() > 0 && !Watched.isEnter(char))
+    commandSB.toString.trim
+  }
+
+  private lazy val interfaceBuilderCommand = Command.command("interfaceBuilder"){originalState =>
+    var state = originalState
     val extracted = Project.extract(state)
     val scope = extracted.get(robovmIBScope)
 
-    if(Project.runTask(robovmIBOpen in scope, state).isEmpty){
-      //Not defined in this scope, what now?
-      println("Not defined in this scope! EXPLOSION IMMINENT")
-    }
-    withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
+    def prompt() = {print("interfaceBuilder > ")}
 
-      def shouldTerminate: Boolean = {
-        if(System.in.available() <= 0) false
-        else {
-          val commandSB = new java.lang.StringBuilder
-          while(System.in.available() > 0){
-            commandSB.appendCodePoint(System.in.read())
-          }
-          val command = commandSB.toString.trim
-          if(command.isEmpty){
-            true //Terminate in this case, Enter was most likely pressed
-          } else {
-            command match {
-              case "device" =>
-                extracted.runTask(device in scope, state)
-              case "simulator" =>
-                extracted.runTask(simulator in scope, state)
-              case "iphoneSim" =>
-                extracted.runTask(iphoneSim in scope, state)
-              case "ipadSim" =>
-                extracted.runTask(ipadSim in scope, state)
-              case unrecognized =>
-                println("Unrecognized interfaceBuilder command \""+unrecognized+"\"")
-                println("Available commands: device, simulator, iphoneSim, ipadSim\n   or empty line to terminate")
-            }
-            false
+    def integrator():Option[IBIntegratorProxy] = {
+      Project.runTask(robovmIBIntegrator in scope, state) match {
+        case Some((resultState, Value(Some(result)))) =>
+          state = resultState
+          Some(result)
+        case Some((resultState, Value(None))) =>
+          resultState.log.error("interfaceBuilder not supported on this platform or in this distribution")
+          state = resultState.fail
+          None
+        case Some((resultState, Inc(cause))) =>
+          resultState.log.error("failed to retrieve interfaceBuilder integrator, possibly an error: "+cause)
+          state = resultState.fail
+          None
+        case None =>
+          state.log.error("interfaceBuilder not defined for robovmIBScope, is it and iOS project?")
+          state = state.fail
+          None
+      }
+    }
+
+    integrator() match {
+      case None =>
+        state //already failed
+      case Some(firstIntegrator) =>
+        firstIntegrator.openProject()
+        prompt()
+
+        /**
+         * Watches for external (std in) input.
+         * Submitting empty line exits the loop.
+         * Submitting valid sbt command (= whatever can be entered into the sbt console) executes the command.
+         * Submitting invalid command shows help
+         *
+         * @return true if the watch loop should terminate
+         */
+        def shouldTerminate: Boolean = {
+          readStdInput() match {
+            case null =>
+              false //No input
+            case "" =>
+              true //Terminate in this case, Enter was most likely pressed
+            case "exit" =>
+              //Exit has a special handling, because sbt will exit only after this ended,
+              // so it would seem like it didn't exit at all
+
+              //Enqueue real exit command
+              state = state.::("exit")
+              true //And terminate this command
+            case "interfaceBuilder" =>
+              //That would be rather silly (but would work)
+              println("Already in the interfaceBuilder mode")
+              prompt()
+              false
+            case command =>
+              val parser = Command.combine(state.definedCommands)
+              parse(command, parser(state)) match {
+                case Right(s) =>
+                  state = s() // apply found command
+                case Left(errMsg) =>
+                  println("Unrecognized command \""+command+"\"")
+                  println("Enter empty line to terminate interfaceBuilder")
+              }
+              prompt()
+              false
           }
         }
-      }
 
-      var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
-      while(watchResult._1){
-        Project.runTask(robovmIBIntegrator in scope, state) //This will recompile and update the XCode project
-        watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
-      }
-      state
+        withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
+          var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
+          var integratorDefined = true
+          while(integratorDefined && watchResult._1){
+            integrator() match { //This will recompile and update the XCode project (if all goes well)
+              case Some(_) =>
+                watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
+              case None =>
+                state.log.error("robovmIBIntegrator not defined in scope \""+scope+"\"")
+                state = state.fail
+                integratorDefined = false
+            }
+          }
+          state
+        } //end continuous integration
     }
   }
 }
