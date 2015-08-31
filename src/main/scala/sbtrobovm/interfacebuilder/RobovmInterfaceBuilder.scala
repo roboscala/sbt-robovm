@@ -88,7 +88,12 @@ object RobovmInterfaceBuilder {
       integratorProxy
     },
     robovmIBScope := ThisScope,
-    commands += RobovmInterfaceBuilder.interfaceBuilderCommand
+    commands += RobovmInterfaceBuilder.interfaceBuilderCommand,
+    commands ++= Seq(
+      createCommand("createStoryboard", "Storyboard", "storyboard", (proxy, directory, name) => {proxy.newIOSStoryboard(name, directory)}),
+      createCommand("createView", "View", "xib", (proxy, directory, name) => {proxy.newIOSView(name, directory)}),
+      createCommand("createViewController", "ViewController", "xib", (proxy, directory, name) => {proxy.newIOSViewController(name, directory)})
+    )
   )
 
   /**
@@ -106,6 +111,35 @@ object RobovmInterfaceBuilder {
     commandSB.toString.trim
   }
 
+  private var integratorProxyCache:Option[IBIntegratorProxy] = null
+
+  /**
+   * @param quick - used in completions, where state is most likely not going to change and even if, it is not a big deal,
+   *              but the speed is crucial
+   */
+  private def integrator(state:State, quick:Boolean = false):Option[IBIntegratorProxy] = {
+    if(quick && integratorProxyCache != null)return integratorProxyCache
+    integratorProxyCache = null //Invalidate cache automatically on standard run
+
+    val extracted = Project.extract(state)
+    val scope = extracted.get(robovmIBScope)
+    Project.runTask(robovmIBIntegrator in scope, state) match {
+      case Some((resultState, Value(Some(result)))) =>
+        val some = Some(result)
+        integratorProxyCache = some
+        some
+      case Some((resultState, Value(None))) =>
+        resultState.log.error("interfaceBuilder not supported on this platform or in this distribution")
+        None
+      case Some((resultState, Inc(cause))) =>
+        resultState.log.error("failed to retrieve interfaceBuilder integrator, possibly an error: "+cause)
+        None
+      case None =>
+        state.log.error("interfaceBuilder not defined for robovmIBScope, is it and iOS project?")
+        None
+    }
+  }
+
   private lazy val interfaceBuilderCommand = Command.command("interfaceBuilder"){originalState =>
     var state = originalState
     val extracted = Project.extract(state)
@@ -113,27 +147,7 @@ object RobovmInterfaceBuilder {
 
     def prompt() = {print("interfaceBuilder > ")}
 
-    def integrator():Option[IBIntegratorProxy] = {
-      Project.runTask(robovmIBIntegrator in scope, state) match {
-        case Some((resultState, Value(Some(result)))) =>
-          state = resultState
-          Some(result)
-        case Some((resultState, Value(None))) =>
-          resultState.log.error("interfaceBuilder not supported on this platform or in this distribution")
-          state = resultState.fail
-          None
-        case Some((resultState, Inc(cause))) =>
-          resultState.log.error("failed to retrieve interfaceBuilder integrator, possibly an error: "+cause)
-          state = resultState.fail
-          None
-        case None =>
-          state.log.error("interfaceBuilder not defined for robovmIBScope, is it and iOS project?")
-          state = state.fail
-          None
-      }
-    }
-
-    integrator() match {
+    integrator(state) match {
       case None =>
         state //already failed
       case Some(firstIntegrator) =>
@@ -184,7 +198,7 @@ object RobovmInterfaceBuilder {
           var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
           var integratorDefined = true
           while(integratorDefined && watchResult._1){
-            integrator() match { //This will recompile and update the XCode project (if all goes well)
+            integrator(state) match { //This will recompile and update the XCode project (if all goes well)
               case Some(_) =>
                 watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
               case None =>
@@ -197,4 +211,53 @@ object RobovmInterfaceBuilder {
         } //end continuous integration
     }
   }
+
+  import sbt.complete.DefaultParsers._
+
+  private def createCommand(name:String, whatIsCreated:String, extension:String, action:(IBIntegratorProxy, File,String) => Unit):Command =
+    Command[String](name, (name, "Creates a "+whatIsCreated+" on given path"), "detailed help todo")(state => {
+      integrator(state, quick = true) match {
+          case Some(integrator) =>
+            val resourceFolders = integrator.getResourceFolders
+            if(resourceFolders.isEmpty){
+              failure("No resource folders defined, define some in robovm.xml", definitive = true)
+            }else{
+              //Construct a file parser, with completions to all defined resourceFolders, relative to current-project base dir
+              val basePath = file(Project.extract(state).currentRef.build.getPath)
+              OptSpace ~> StringBasic
+                .examples(new ResourceFileExamples(basePath, integrator.getResourceFolders.asScala.toSet[File], (whatIsCreated, extension)))
+            }
+          case None =>
+            failure("interfaceBuilder not available", definitive = true)
+        }
+      })((state, selectedPath) => {
+        val selectedFile = new File(selectedPath)
+        //Assume that the file is a file that we want to make
+        integrator(state).collect{
+          case integrator =>
+            var directory:File = null
+            var name:String = null
+            if(selectedPath.endsWith("/")){
+              if(selectedFile.exists() && !selectedFile.isDirectory){
+                state.log.error("Directory already exists as a file")
+              }else{
+                directory = selectedFile
+                name = whatIsCreated
+              }
+            }else if(selectedFile.isDirectory){
+              directory = selectedFile
+              name = whatIsCreated
+            }else{
+              //File is specified
+              directory = selectedFile.getParentFile
+              name = selectedFile.getName
+            }
+
+            if(directory != null && name != null){
+              IO.createDirectory(directory)
+              action(integrator, directory, name.stripSuffix("."+extension))
+            }
+        }
+        state
+      })
 }

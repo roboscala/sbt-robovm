@@ -17,6 +17,7 @@ lazy val sbtRoboVM = (project in file(".")).
     resolvers ++= {if (roboVMVersion.value.contains("-SNAPSHOT")) Seq(Resolver.sonatypeRepo("snapshots")) else Seq()},
     libraryDependencies += "org.robovm" % "robovm-dist-compiler" % roboVMVersion.value,
     libraryDependencies += "org.robovm" % "robovm-maven-resolver" % roboVMVersion.value,
+    libraryDependencies += "org.robovm" % "robovm-templater" % roboVMVersion.value,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, roboVMVersion),
     buildInfoPackage := "sbtrobovm"
   )

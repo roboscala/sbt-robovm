@@ -1,11 +1,14 @@
 package sbtrobovm.interfacebuilder
 
 import java.io.File
+import java.lang.reflect.InvocationTargetException
+import java.util.Collections
 
 import org.robovm.compiler.config.Config.Home
 import org.robovm.compiler.log.Logger
 
-import scala.util.{Failure, Try}
+import scala.util.Try
+import scala.util.control.NonFatal
 
 
 /**
@@ -22,70 +25,74 @@ class IBIntegratorProxy private (private val log:Logger) {
 
   def isValid:Boolean = instance != null
 
-  private def invokeExplicit[T <: Object](method:String, types:Class[_]*)(parameters:Object*):T = {
-    if(!isValid)return null.asInstanceOf[T]
+  private def invoke[T <: Object](method:String, types:Class[_]*)(parameters:Object*):T = {
     //println("Invoking "+method+"("+parameters.mkString(", ")+")")
-    val result = Try(IBIntegratorProxy.integratorClass.getMethod(method, types:_*).invoke(instance, parameters:_*))
-    if(result.isFailure){
-      System.err.println("IBIntegratorProxy: Failed to invoke method "+method+":")
-      result.asInstanceOf[Failure[_]].exception.printStackTrace(System.err)
+    def err(msg:String, throwable: Throwable = null):T = {
+      System.err.println("IBIntegratorProxy: "+msg)
+      if(throwable != null)throwable.printStackTrace(System.err)
+      null.asInstanceOf[T]
     }
-    result.getOrElse(null).asInstanceOf[T]
-  }
 
-  private def invoke[T <: Object](method:String, parameters:Object*):T = {
-    if(!isValid)return null.asInstanceOf[T]
-    //println("Invoking "+method+"("+parameters.mkString(", ")+")")
-    val result = Try(IBIntegratorProxy.integratorClass.getMethod(method, parameters.map(_.getClass):_*).invoke(instance, parameters:_*))
-    if(result.isFailure){
-      System.err.println("IBIntegratorProxy: Failed to invoke method "+method+":")
-      result.asInstanceOf[Failure[_]].exception.printStackTrace(System.err)
+    if(!isValid)return err("Instance not valid")
+    try {
+      IBIntegratorProxy.integratorClass.getMethod(method, types:_*).invoke(instance, parameters:_*).asInstanceOf[T]
+    }catch{
+      case nsm:NoSuchMethodException =>
+        err("Method "+method+"("+types.map(_.getSimpleName).mkString(", ")+") does not exist")
+      case ite:InvocationTargetException =>
+        err("Method "+method+"("+types.map(_.getSimpleName).mkString(", ")+") has thrown an exception", ite.getCause)
+      case NonFatal(e) =>
+        err("Failed to invoke "+method+"("+types.map(_.getSimpleName).mkString(", ")+")", e)
     }
-    result.getOrElse(null).asInstanceOf[T]
   }
 
   def setInfoPlist(plist:File): Unit = {
-    invoke("setInfoPlist", plist)
+    invoke("setInfoPlist", classOf[File])(plist)
   }
+
+  private var resourceFolders:java.util.Set[File] = Collections.emptySet[File]()
 
   def setResourceFolders(resourceFolders:java.util.Set[File]): Unit ={
-    invokeExplicit("setResourceFolders",classOf[java.util.Set[File]])(resourceFolders)
+    this.resourceFolders = resourceFolders
+    invoke("setResourceFolders",classOf[java.util.Set[File]])(resourceFolders)
   }
 
+  def getResourceFolders = resourceFolders
+
   def setClasspath(classpath:java.util.List[File]): Unit = {
-    invokeExplicit("setClasspath",classOf[java.util.List[File]])(classpath)
+    invoke("setClasspath",classOf[java.util.List[File]])(classpath)
   }
 
   def setSourceFolders(sourceFolders:java.util.Set[File]): Unit ={
-    invokeExplicit("setSourceFolders",classOf[java.util.Set[File]])(sourceFolders)
+    invoke("setSourceFolders",classOf[java.util.Set[File]])(sourceFolders)
   }
 
   def newIOSStoryboard(name:String, path:File): Unit ={
-    invoke("newIOSStoryboard", name, path)
+    invoke("newIOSStoryboard", classOf[String], classOf[File])(name, path)
   }
 
   def newIOSView(name:String, path:File): Unit ={
-    invoke("newIOSView", name, path)
+    invoke("newIOSView", classOf[String], classOf[File])(name, path)
   }
 
-  def newIOSWindow(name:String, path:File): Unit ={
-    invoke("newIOSWindow", name, path)
+  def newIOSViewController(name:String, path:File): Unit ={
+    invoke("newIOSViewController", classOf[String], classOf[File])(name, path)
   }
 
   def openProject(): Unit ={
-    invoke("openProject")
+    invoke("openProject")()
   }
 
   def openProjectFile(file:String): Unit ={
-    invoke("openProjectFile",file)
+    invoke("openProjectFile", classOf[String])(file)
   }
 
   def start(): Unit ={
-    invoke("start")
+    invoke("start")()
   }
 
   def shutDown(): Unit ={
-    invoke("shutDown")
+    invoke("shutDown")()
   }
 
 }
@@ -94,6 +101,7 @@ object IBIntegratorProxy {
   private val integratorClass:Class[_] = Try(Class.forName("com.robovm.ibintegrator.IBIntegrator")).getOrElse(null)
 
   import java.io.File
+
   import org.robovm.compiler.config.Config.Home
   import org.robovm.compiler.log.Logger
 
