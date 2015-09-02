@@ -15,11 +15,11 @@ import scala.util.control.NonFatal
  * Reflection proxy for safe handling of IBIntegrator, class bundled into the RoboVM distribution, which is internal
  * and can't be compiled against.
  */
-class IBIntegratorProxy private (private val log:Logger) {
+class IBIntegratorProxy private (private val log:Logger, override val toString:String) {
   private var instance:Object = _
 
-  def this(home:Home, logger:Logger, name:String, xcodeDirectory:File){
-    this(logger)
+  def this(home:Home, logger:Logger, name:String, xcodeDirectory:File, debugName:String){
+    this(logger, debugName)
     instance = IBIntegratorProxy.instantiate(home, logger, name, xcodeDirectory)
   }
 

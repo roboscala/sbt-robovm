@@ -12,11 +12,11 @@ import sbtrobovm.RobovmPlugin._
 import sbtrobovm.RobovmProjects
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object RobovmInterfaceBuilder {
 
-  private var integratorProxyInitialized = false
-  private var integratorProxy:Option[IBIntegratorProxy] = None
+  private val integratorProxies = new mutable.HashMap[ModuleID, Option[IBIntegratorProxy]]()
 
   lazy val ibIntegrationSettings = Seq(
     robovmIBDirectory := {
@@ -25,6 +25,7 @@ object RobovmInterfaceBuilder {
       result
     },
     robovmIBIntegrator := {
+      val log = (streams in robovmIBIntegrator).value.log
       /*
       This is not very sbt-like, but probably the easiest approach.
 
@@ -35,13 +36,16 @@ object RobovmInterfaceBuilder {
 
       When created, adds a shutdown hook to shutdown the proxy's change detection threads.
        */
-      if(!integratorProxyInitialized){
-        integratorProxyInitialized = true
-
+      val project = (projectID in robovmIBIntegrator).value
+      if(!integratorProxies.contains(project)){
+        val home = robovmHome.value
+        val compilerLogger = robovmCompilerLogger.value
         val projectName = (name in robovmIBIntegrator).value
-        val result = new IBIntegratorProxy(robovmHome.value, robovmCompilerLogger.value, projectName, robovmIBDirectory.value)
+        val robovmIBFolder = robovmIBDirectory.value
+        val result = new IBIntegratorProxy(home, compilerLogger, projectName, robovmIBFolder, project.toString())
+        log.debug("Created IBIntegrator proxy (robovmHome="+home.getBinDir.getCanonicalPath+", projectName="+projectName+", ibFolder="+robovmIBFolder.getCanonicalPath+") valid="+result.isValid)
 
-        integratorProxy = if(result.isValid){
+        if(result.isValid){
           result.start()
 
           java.lang.Runtime.getRuntime.addShutdownHook(new Thread("IBIntegrator Shutdown Hook"){
@@ -49,11 +53,14 @@ object RobovmInterfaceBuilder {
               result.shutDown()
             }
           })
-          Some(result)
-        }else None
+          integratorProxies(project) = Some(result)
+        }else{
+          integratorProxies(project) = None
+        }
       }
 
-      integratorProxy.collect {
+      val integratorProxyOpt = integratorProxies(project)
+      integratorProxyOpt.collect {
         case result =>
           val configuration = RobovmProjects.configTask(RobovmProjects.ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, robovmIBIntegrator.scope).value.build()
 
@@ -80,12 +87,17 @@ object RobovmInterfaceBuilder {
           })
           result.setResourceFolders(resourceFolders)
 
+          log.debug("Updated integrator proxy ("+result+") with:\n\tclasspath: "+classpath+"\n\tsourceFolders: "+sourceFolders+"\n\tresourceFolders: "+resourceFolders)
 
           val infoPList = configuration.getInfoPList
-          if(infoPList != null && infoPList.getFile.isFile) result.setInfoPlist(infoPList.getFile)
+          if(infoPList != null && infoPList.getFile.isFile){
+            result.setInfoPlist(infoPList.getFile)
+            log.debug("... and PList set to "+infoPList.getFile.getCanonicalPath)
+          }else log.debug("... and PList not set to anything")
+
       }
 
-      integratorProxy
+      integratorProxyOpt
     },
     robovmIBScope := ThisScope,
     commands += RobovmInterfaceBuilder.interfaceBuilderCommand,
@@ -125,6 +137,7 @@ object RobovmInterfaceBuilder {
     val scope = extracted.get(robovmIBScope)
     Project.runTask(robovmIBIntegrator in scope, state) match {
       case Some((resultState, Value(Some(result)))) =>
+        state.log.debug("Retrieved robovmIBIntegrator with scope \""+scope+"\": "+result+" ("+integratorProxies.size+" proxies loaded)")
         val some = Some(result)
         integratorProxyCache = some
         some
@@ -220,6 +233,7 @@ object RobovmInterfaceBuilder {
           case Some(integrator) =>
             val resourceFolders = integrator.getResourceFolders
             if(resourceFolders.isEmpty){
+              state.log.warn("No resource folders defined, define some in robovm.xml")//Because failure() don't seem to show its message
               failure("No resource folders defined, define some in robovm.xml", definitive = true)
             }else{
               //Construct a file parser, with completions to all defined resourceFolders, relative to current-project base dir
@@ -228,6 +242,7 @@ object RobovmInterfaceBuilder {
                 .examples(new ResourceFileExamples(basePath, integrator.getResourceFolders.asScala.toSet[File], (whatIsCreated, extension)))
             }
           case None =>
+            state.log.warn("interfaceBuilder not available")//Because failure() don't seem to show its message
             failure("interfaceBuilder not available", definitive = true)
         }
       })((state, selectedPath) => {
