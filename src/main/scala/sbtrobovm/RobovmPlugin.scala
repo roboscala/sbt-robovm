@@ -84,4 +84,45 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
 
   //This adds project-independent tools into the settings
   override def globalSettings: Seq[Def.Setting[_]] = RobovmProjects.toolSettings
+
+  // Backwards compatibility
+  import sbt.Defaults._
+  @deprecated(message = "Use RobovmPlugin.autoImport.iOSRoboVMSettings instead", since = "1.7.0")
+  def iOSProject(
+             id: String,
+             base: File,
+             aggregate: => Seq[ProjectReference] = Nil,
+             dependencies: => Seq[ClasspathDep[ProjectReference]] = Nil,
+             delegates: => Seq[ProjectReference] = Nil,
+             settings: => Seq[Def.Setting[_]] = Seq.empty,
+             configurations: Seq[Configuration] = Configurations.default
+             ) = Project(
+    id,
+    base,
+    aggregate,
+    dependencies,
+    delegates,
+    coreDefaultSettings ++ autoImport.iOSRoboVMSettings ++ settings,
+    configurations
+  )
+
+  @deprecated(message = "Use RobovmPlugin.autoImport.nativeRoboVMSettings instead", since = "1.7.0")
+  def NativeProject(
+                  id: String,
+                  base: File,
+                  aggregate: => Seq[ProjectReference] = Nil,
+                  dependencies: => Seq[ClasspathDep[ProjectReference]] = Nil,
+                  delegates: => Seq[ProjectReference] = Nil,
+                  settings: => Seq[Def.Setting[_]] = Seq.empty,
+                  configurations: Seq[Configuration] = Configurations.default
+                  ) = Project(
+    id,
+    base,
+    aggregate,
+    dependencies,
+    delegates,
+    coreDefaultSettings ++ autoImport.nativeRoboVMSettings ++ settings,
+    configurations
+  )
+
 }
