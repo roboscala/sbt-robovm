@@ -23,7 +23,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   //Internal
   /** It is a task, because `streams` is a task. */
   val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
-  /** It is a task, because `streams` is a task. */
+  /** It is a task, because `streams` is a task. It also updates the integrator when something changes. */
   val robovmIBIntegrator = taskKey[Option[IBIntegratorProxy]]("Retrieve InterfaceBuilder integrator")
   val robovmIBDirectory = settingKey[File]("Folder in which the InterfaceBuilder integration creates XCode files")
 
@@ -35,12 +35,12 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val ipadSim = taskKey[Unit]("Start package on ipad simulator")
   val ipa = taskKey[Unit]("Create an ipa file for the app store")
 
-  val robovmIBScope = settingKey[Scope]("Scope in which run IB tasks")
-
   val robovmSkipSigning = settingKey[Option[Boolean]]("Whether to override signing behavior")
   val robovmProvisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
   val robovmSigningIdentity = settingKey[Option[String]]("Specify signing identity to use when signing iOS code.")
   val robovmPreferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
+
+  val robovmIBScope = settingKey[Scope]("Scope in which IB tasks are evaluated, defaults to ThisScope")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
   val nativeBuild = taskKey[Unit]("Compile and archive for distribution as native application")
@@ -75,6 +75,8 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val robovmProvisioningProfile = RobovmPlugin.robovmProvisioningProfile
     val robovmSigningIdentity = RobovmPlugin.robovmSigningIdentity
     val robovmPreferredDevices = RobovmPlugin.robovmPreferredDevices
+
+    val robovmIBScope = RobovmPlugin.robovmIBScope
     // Native Only
     val native = RobovmPlugin.native
     val nativeBuild = RobovmPlugin.nativeBuild
