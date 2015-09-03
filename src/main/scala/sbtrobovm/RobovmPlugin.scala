@@ -86,8 +86,13 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   override def globalSettings: Seq[Def.Setting[_]] = RobovmProjects.toolSettings
 
   // Backwards compatibility
+  @deprecated(message = "Use robovmProvisioningProfile instead", since = "1.7.0")
+  val provisioningProfile = robovmProvisioningProfile
+  @deprecated(message = "Use robovmSigningIdentity instead", since = "1.7.0")
+  val signingIdentity = robovmSigningIdentity
+
   import sbt.Defaults._
-  @deprecated(message = "Use RobovmPlugin.autoImport.iOSRoboVMSettings instead", since = "1.7.0")
+  @deprecated(message = "Create project normally and prepend RobovmPlugin.autoImport.iOSRoboVMSettings to settings instead", since = "1.7.0")
   def iOSProject(
              id: String,
              base: File,
@@ -106,7 +111,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     configurations
   )
 
-  @deprecated(message = "Use RobovmPlugin.autoImport.nativeRoboVMSettings instead", since = "1.7.0")
+  @deprecated(message = "Create project normally and prepend RobovmPlugin.autoImport.nativeRoboVMSettings to settings instead", since = "1.7.0")
   def NativeProject(
                   id: String,
                   base: File,
