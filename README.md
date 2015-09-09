@@ -155,8 +155,6 @@ That notes that you are in a special mode, where the `interfaceBuilder` command 
 any commands/tasks as usual, so you can, for example, run the `ipadSimulator` task to quickly view your changes on device.
 Pressing enter, without any command, will exit the `interfaceBuilder` mode and you will be back to standard sbt prompt.
 
-_NOTE: TAB completion currently does not work in `interfaceBuilder` mode_
-
 Because `interfaceBuilder` is a command and not a task (for technical reasons), it can not be scoped.
 Therefore, doing something like `myProject/interfaceBuilder` will not work.
 To work around this, use `project myProject` command first, to switch active project to that and then run `interfaceBuilder`.

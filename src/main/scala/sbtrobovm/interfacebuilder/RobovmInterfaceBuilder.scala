@@ -1,5 +1,6 @@
 package sbtrobovm.interfacebuilder
 
+import java.io.File
 import java.util
 
 import org.robovm.compiler.config.OS
@@ -158,14 +159,11 @@ object RobovmInterfaceBuilder {
     val extracted = Project.extract(state)
     val scope = extracted.get(robovmIBScope)
 
-    def prompt() = {print("interfaceBuilder > ")}
-
     integrator(state) match {
       case None =>
         state //already failed
       case Some(firstIntegrator) =>
         firstIntegrator.openProject()
-        prompt()
 
         /**
          * Watches for external (std in) input.
@@ -176,33 +174,34 @@ object RobovmInterfaceBuilder {
          * @return true if the watch loop should terminate
          */
         def shouldTerminate: Boolean = {
-          readStdInput() match {
-            case null =>
+          //See sbt source, BasicCommands:160 - shell
+          val history = (state get BasicKeys.historyPath) getOrElse Some(new File(state.baseDir, ".history"))
+          val reader = new FullReader(history, state.combinedParser)
+          val line = reader.readLine("interfaceBuilder > ")
+          line match {
+            case None =>
               false //No input
-            case "" =>
+            case Some("") =>
               true //Terminate in this case, Enter was most likely pressed
-            case "exit" =>
+            case Some("exit") =>
               //Exit has a special handling, because sbt will exit only after this ended,
               // so it would seem like it didn't exit at all
 
               //Enqueue real exit command
               state = state.::("exit")
               true //And terminate this command
-            case "interfaceBuilder" =>
+            case Some("interfaceBuilder") =>
               //That would be rather silly (but would work)
               println("Already in the interfaceBuilder mode")
-              prompt()
               false
-            case command =>
-              val parser = Command.combine(state.definedCommands)
-              parse(command, parser(state)) match {
+            case Some(command) =>
+              parse(command, Command.combine(state.definedCommands)(state)) match {
                 case Right(s) =>
                   state = s() // apply found command
                 case Left(errMsg) =>
                   println("Unrecognized command \""+command+"\"")
                   println("Enter empty line to terminate interfaceBuilder")
               }
-              prompt()
               false
           }
         }
