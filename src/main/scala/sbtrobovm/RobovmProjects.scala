@@ -19,34 +19,18 @@ object RobovmProjects {
   type TargetType = String
 
   def configTask(arch: Def.Initialize[Array[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
-    val st = streams.value
+    val log = (streams in scope).value.log
 
     val builder = new Config.Builder()
-
-    builder.logger(new Logger() {
-      def debug(s: String, o: java.lang.Object*) = {
-        if (robovmVerbose.value) {
-          st.log.info(s.format(o: _*))
-        } else {
-          st.log.debug(s.format(o: _*))
-        }
-      }
-
-      def info(s: String, o: java.lang.Object*) = st.log.info(s.format(o: _*))
-
-      def warn(s: String, o: java.lang.Object*) = st.log.warn(s.format(o: _*))
-
-      def error(s: String, o: java.lang.Object*) = st.log.error(s.format(o: _*))
-    })
-
+    builder.logger(robovmCompilerLogger.value)
     builder.home(robovmHome.value)
 
     robovmProperties.value match {
       case Left(propertyFile) =>
-        st.log.debug("Including properties file: " + propertyFile.getAbsolutePath)
+        log.debug("Including properties file: " + propertyFile.getAbsolutePath)
         builder.addProperties(propertyFile)
       case Right(propertyMap) =>
-        st.log.debug("Including embedded properties: " + propertyMap)
+        log.debug("Including embedded properties: " + propertyMap)
         for ((key, value) <- propertyMap) {
           builder.addProperty(key, value)
         }
@@ -55,16 +39,16 @@ object RobovmProjects {
 
     robovmConfiguration.value match {
       case Left(file) =>
-        st.log.debug("Loading config file: " + file.getAbsolutePath)
+        log.debug("Loading config file: " + file.getAbsolutePath)
         builder.read(file)
       case Right(xml) =>
-        st.log.debug("Loading embedded xml configuration: "+xml)
+        log.debug("Loading embedded xml configuration: "+xml)
         builder.read(new StringReader(xml.toString()),baseDirectory.value)
     }
 
     builder.clearClasspathEntries()
     robovmInputJars.value foreach { jarFile =>
-      st.log.debug("Adding input jar: " + jarFile)
+      log.debug("Adding input jar: " + jarFile)
       builder.addClasspathEntry(jarFile)
     }
 
@@ -82,8 +66,8 @@ object RobovmProjects {
         FileUtils.deleteDirectory(tmpDir)
       } catch {
         case io:IOException =>
-          st.log.error("Failed to clean temporary output directory "+tmpDir)
-          st.log.trace(io)
+          log.error("Failed to clean temporary output directory "+tmpDir)
+          log.trace(io)
       }
     }
     tmpDir.mkdirs()
@@ -94,10 +78,10 @@ object RobovmProjects {
       builder.debug(true)
       val debugPort = (robovmDebugPort in scope).value
       if(debugPort != -1){
-        st.log.info("RoboVM Debug is enabled on port "+debugPort)
+        log.info("RoboVM Debug is enabled on port "+debugPort)
         builder.addPluginArgument("debug:jdwpport=" + debugPort)
       }else{
-        st.log.warn("RoboVM Debug is enabled, but no port is specified!")
+        log.warn("RoboVM Debug is enabled, but no port is specified!")
       }
     }
 
@@ -156,6 +140,24 @@ object RobovmProjects {
     robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
+    robovmCompilerLogger := new Logger() {
+
+     val log = (streams in robovmCompilerLogger).value.log
+
+      def debug(s: String, o: java.lang.Object*) = {
+        if (robovmVerbose.value) {
+          log.info(s.format(o: _*))
+        } else {
+          log.debug(s.format(o: _*))
+        }
+      }
+
+      def info(s: String, o: java.lang.Object*) = log.info(s.format(o: _*))
+
+      def warn(s: String, o: java.lang.Object*) = log.warn(s.format(o: _*))
+
+      def error(s: String, o: java.lang.Object*) = log.error(s.format(o: _*))
+    },
     robovmTarget64bit := false,
     ivyConfigurations += ManagedNatives,
     ivyConfigurations += Debug
@@ -262,11 +264,11 @@ object RobovmProjects {
     compiler.launch(launchParameters)
   }
 
-  private val deviceArchitectureSetting = Def.setting[Array[Arch]]{
+  val deviceArchitectureSetting = Def.setting[Array[Arch]]{
     Array(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
   }
 
-  private val ipaArchitectureSetting = Def.setting[Array[Arch]]{Array(Arch.thumbv7, Arch.arm64)}
+  val ipaArchitectureSetting = Def.setting[Array[Arch]]{Array(Arch.thumbv7, Arch.arm64)}
 
   private def deviceTask(scope:Scope) = Def.task[Unit]{
     val log = streams.value.log

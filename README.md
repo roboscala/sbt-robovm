@@ -35,7 +35,7 @@ There are different tasks defined for iOS and native console projects.
 ### Shared
 
 * `robovmLicense`
-	* Allows you to enter your [RoboVM license key](http://robovm.com/pricing/) to get access to premium features, such as line numbers in stack traces and debugger support.
+	* Allows you to enter your [RoboVM license key](http://robovm.com/pricing/) to get access to premium features, such as line numbers in stack traces, debugger support and interface builder integration.
 
 ### iOS
 
@@ -116,8 +116,11 @@ As with tasks, there are some settings that are only meaningful in iOS projects.
 	* Setting this to `Some(true/false)` overrides default signing behavior and allows you to test without proper certificates and identities
 * `robovmPreferredDevices` _Seq[String]_
 	* List of iOS device ID's listed in the priority in which you want to connect to them if multiple devices are connected
+* `robovmIBScope` _Scope_
+    * Scope in which `interfaceBuilder` command operates. Defaults to `ThisScope`.
+    * Only reason to change this is if you have a custom configuration
 	
-## Debugging
+## Debugging _(licensed only)_
 
 Line numbers will be enabled automatically when the license is entered (see `robovmLicense` task).
 
@@ -135,6 +138,29 @@ Running with the debugger enabled will allow you to connect to a running applica
 1. IntelliJ will connect to the running application and you can start debugging like you are used to with standard Java debugging
 
 Application execution will pause before your `main` method and wait for the debugger to attach. Then it will continue normally.
+
+## Interface Builder _(licensed only)_
+
+This plugin offers a basic integration with XCode's [Interface Builder](https://developer.apple.com/xcode/interface-builder/).
+There are some excellent tutorials on how to use IB with IntelliJ on [RoboVM website](http://docs.robovm.com/tutorials/ib-basics/ib-basics.html).
+Getting familiar with them is recommended, since the workflow in sbt is similar.
+
+In the core of this feature is an interactive `interfaceBuilder` _command_.
+Run the command inside your iOS project, it will generate XCode project and open it in the Interface Builder.
+Then it will watch your code sources and when any of them change, it will recompile the project and update the XCode project accordingly.
+XCode will show new `IBOutlet`s and `IBAction`s very shortly after that.
+
+You will also notice, that the prompt in the sbt console will change to "interfaceBuilder >".
+That notes that you are in a special mode, where the `interfaceBuilder` command is still running, but you can still run
+any commands/tasks as usual, so you can, for example, run the `ipadSimulator` task to quickly view your changes on device.
+Pressing enter, without any command, will exit the `interfaceBuilder` mode and you will be back to standard sbt prompt.
+
+_NOTE: TAB completion currently does not work in `interfaceBuilder` mode_
+
+Because `interfaceBuilder` is a command and not a task (for technical reasons), it can not be scoped.
+Therefore, doing something like `myProject/interfaceBuilder` will not work.
+To work around this, use `project myProject` command first, to switch active project to that and then run `interfaceBuilder`.
+If you need even more granular scoping, use the `robovmIBScope` setting.
 
 ### Tips
 
