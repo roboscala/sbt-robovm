@@ -4,10 +4,10 @@ lazy val sbtRoboVM = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   settings(
     name := "sbt-robovm",
-    roboVMVersion := "1.6.0",
+    roboVMVersion := "1.7.0",
     licenses += ("BSD 3-Clause", url("http://opensource.org/licenses/BSD-3-Clause")),
     organization := "org.roboscala",
-    version := roboVMVersion.value + "-IB",
+    version := roboVMVersion.value,
     sbtPlugin := true,
     publishMavenStyle := false,
     bintrayOrganization := None,

@@ -26,6 +26,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   /** It is a task, because `streams` is a task. It also updates the integrator when something changes. */
   val robovmIBIntegrator = taskKey[Option[IBIntegratorProxy]]("Retrieve InterfaceBuilder integrator")
   val robovmIBDirectory = settingKey[File]("Folder in which the InterfaceBuilder integration creates XCode files")
+  val robovmIBScope = settingKey[Scope]("Scope in which IB tasks are evaluated, defaults to ThisScope")
 
   /* Specific settings and tasks */
   // iOS Only
@@ -40,7 +41,6 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmSigningIdentity = settingKey[Option[String]]("Specify signing identity to use when signing iOS code.")
   val robovmPreferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
 
-  val robovmIBScope = settingKey[Scope]("Scope in which IB tasks are evaluated, defaults to ThisScope")
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
   val nativeBuild = taskKey[Unit]("Compile and archive for distribution as native application")
