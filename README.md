@@ -12,29 +12,21 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 ## Add the Plugin
 
 First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.0")`
-into the `project/plugins.sbt` file. _The file name (not extension) may actually be different, but such is the convention_
+into the `project/plugins.sbt` file. _The file name (not extension) may actually be different, but such is the convention._
 The plugin's version is in sync with the RoboVM version it uses, so it should always be clear which RoboVM is being used.
 
 ## Project Creation
 
-To use the plugin, you must create a [.scala build file](http://www.scala-sbt.org/0.13/tutorial/Full-Def.html)
-and define what kind of project you are creating. The file can be named anything, for example `project/MyBuild.scala`.
+All you have to do to use the plugin, is to add `iOSRoboVMSettings` key (or `nativeRoboVMSettings` if you are creating a native project)
+to your [`build.sbt`](http://www.scala-sbt.org/0.13/tutorial/Basic-Def.html) file.
 
-When building an iOS app:
+If you are creating a multi-project build, prepend that to your settings Seq:
 
 ```scala
-import sbt.Keys._
-import sbt._
-import sbtrobovm.RobovmPlugin._
-
-object MyBuild extends Build {
-	lazy val root = iOSProject(id = "myproject", base = file("."), settings = Seq(
-		/* Your settings, see below. */
-	))
-}
+lazy val myproject = Project(id = "myproject", base = file("myproject"), settings = iOSRoboVMSettings ++ Seq(
+	/* More settings */
+))
 ```
-
-If you are, on the other hand, creating a native console application, use `NativeProject` instead of `iOSProject`.
 
 ## Tasks
 
@@ -53,7 +45,7 @@ There are different tasks defined for iOS and native console projects.
 	* Build and run the app on a simulator specified by the `robovmSimulatorDevice` setting.
 * `device`
 	* Build and run the app on a connected device.
-	* It is possible to specify the order of preference of devices using the `preferredDevices` task.
+	* It is possible to specify the order of preference of devices using the `robovmPreferredDevices` task.
 	* Otherwise, the plugin will attempt to connect to the last device it has used.
 * `ipa`
 	* Create the .ipa archive for upload to the App Store or other distribution.
@@ -109,20 +101,20 @@ As with tasks, there are some settings that are only meaningful in iOS projects.
 
 ### iOS Only
 
-* `provisioningProfile` _Option[String]_
+* `robovmProvisioningProfile` _Option[String]_
 	* Specify provisioning profile to use when signing iOS code
 	* Profile can be specified by name, UUID, app prefix, etc.
 	* See _Tips_ section
-* `signingIdentity` _Option[String]_
+* `robovmSigningIdentity` _Option[String]_
 	* Specify signing identity to use when signing iOS code
 	* Signing identity can be specified by name, fingerprint, etc.
 	* See _Tips_ section
 * `robovmSimulatorDevice` _Option[String]_
 	* Name of device to be used in `simulator` task
 	* Use `simulatorDevices` task to list all installed devices
-* `skipSigning` _Option[Boolean]_
+* `robovmSkipSigning` _Option[Boolean]_
 	* Setting this to `Some(true/false)` overrides default signing behavior and allows you to test without proper certificates and identities
-* `preferredDevices` _Seq[String]_
+* `robovmPreferredDevices` _Seq[String]_
 	* List of iOS device ID's listed in the priority in which you want to connect to them if multiple devices are connected
 	
 ## Debugging
@@ -147,12 +139,12 @@ Application execution will pause before your `main` method and wait for the debu
 ### Tips
 
 * All paths in the configuration are relative to the base directory.
-* During typical development, you usually end up with two pairs of signing identity and profile, one for development and one for distribution. It is possible to scope the `signingIdentity/Profile` keys to automatically use the distribution pair when building an ipa:
+* During typical development, you usually end up with two pairs of signing identity and profile, one for development and one for distribution. It is possible to scope the `robovmSigningIdentity/Profile` keys to automatically use the distribution pair when building an ipa:
 ```scala
-provisioningProfile := Some("name of development profile"),
-signingIdentity := Some("name of development identity"),
-provisioningProfile in ipa := Some("name of distribution profile"),
-signingIdentity in ipa := Some("name of distribution identity")
+robovmProvisioningProfile := Some("name of development profile"),
+robovmSigningIdentity := Some("name of development identity"),
+robovmProvisioningProfile in ipa := Some("name of distribution profile"),
+robovmSigningIdentity in ipa := Some("name of distribution identity")
 ```
 * You can download simulators for more iOS versions in Xcode. Xcode includes only the latest iOS simulator by default.
 * The first time you try to compile a program, RoboVM must compile the Java and Scala standard libraries. This can take a few minutes, but the output of this process is cached. Subsequent compilations will be much faster.
@@ -171,9 +163,28 @@ $ sbt +publish-local
 Then in your project/plugins.sbt file:
 
 ```scala
+// Relevant when testing with RoboVM snapshot build
 resolvers += Resolver.sonatypeRepo("snapshots")
 
 addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT")
+```
+
+When testing the changes, it may be useful to publish (locally) with different version than default,
+to be sure that the changes really take place. To do that, int build.sbt change line:
+```scala
+    version := roboVMVersion.value,
+```
+to:
+```scala
+    version := roboVMVersion.value + "-YOUR_SUFFIX",
+```
+
+And the project/plugins.sbt of your project to:
+```scala
+// Relevant when testing with RoboVM snapshot build
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT-YOUR_SUFFIX" changing())
 ```
 
 ### Contributing
