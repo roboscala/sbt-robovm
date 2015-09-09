@@ -181,35 +181,29 @@ If you need to make modifications to the plugin itself, you can compile and inst
 ```bash
 $ git clone git://github.com/roboscala/sbt-robovm.git
 $ cd sbt-robovm
-$ sbt +publish-local
+$ sbt publish-local
 ```
 
-Then in your project/plugins.sbt file:
-
-```scala
-// Relevant when testing with RoboVM snapshot build
-resolvers += Resolver.sonatypeRepo("snapshots")
-
-addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT")
-```
-
-When testing the changes, it may be useful to publish (locally) with different version than default,
-to be sure that the changes really take place. To do that, int build.sbt change line:
+When testing your changes, it is useful to publish locally with different version than what is officially used.
+That is because if you have already used the official version, your testing projects will most likely use that and not your modified version. To workaround that, change in sbt-robovm's build.sbt:
 ```scala
     version := roboVMVersion.value,
 ```
-to:
+to
 ```scala
     version := roboVMVersion.value + "-YOUR_SUFFIX",
 ```
-
-And the project/plugins.sbt of your project to:
+and in the project/plugins.sbt of your (testing) project, instead of standard installation:
 ```scala
-// Relevant when testing with RoboVM snapshot build
+// Necessary only when testing with RoboVM snapshot build, such as 1.7.1-SNAPSHOT
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.6.1-SNAPSHOT-YOUR_SUFFIX" changing())
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.7.0-YOUR_SUFFIX" changing())
 ```
+
+Unless you need to use the SNAPSHOT version of RoboVM, it is easier to work with stable version, because for SNAPSHOT dependencies, sbt has to check for new version each run, which adds latency to testing.
+
+However, when working on the plugin, you want it to be "redownloaded" each time it changes, and the `changing()` in `addSbtPlugin` line does exactly that. But don't worry, thanks to it being installed/published locally, the latency of these checks is negligible.
 
 ### Contributing
 
