@@ -25,6 +25,10 @@ object RobovmInterfaceBuilder {
       IO.createDirectory(result)
       result
     },
+    /**
+     * Beware: This may fail when any dependent tasks fail.
+     * However, that does not necessarily mean that robovmIBIntegrator is not available.
+     */
     robovmIBIntegrator := {
       val log = (streams in robovmIBIntegrator).value.log
       /*
@@ -131,7 +135,10 @@ object RobovmInterfaceBuilder {
         resultState.log.error("interfaceBuilder not supported on this platform or in this distribution")
         None
       case Some((resultState, Inc(cause))) =>
-        resultState.log.error("failed to retrieve interfaceBuilder integrator, possibly an error: "+cause)
+        //This in most cases mean that some of the dependant tasks failed.
+        //Usually when user source code is invalid and fails to compile.
+        resultState.log.warn("Failed to retrieve interfaceBuilder integrator")
+        resultState.log.debug("Caused by: "+cause)
         None
       case None =>
         state.log.error("interfaceBuilder not defined for robovmIBScope, is it and iOS project?")
@@ -152,15 +159,14 @@ object RobovmInterfaceBuilder {
     override def run(): Unit = {
       withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
         var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
-        var integratorDefined = true
-        while(integratorDefined && watchResult._1){
-          CommandLock.synchronized(integrator(state)) match { //This will recompile and update the XCode project (if all goes well)
-            case Some(_) =>
-              watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
-            case None =>
-              state.log.error("robovmIBIntegrator not defined in scope \""+Project.extract(state).get(robovmIBScope)+"\"")
-              integratorDefined = false
-          }
+        while(watchResult._1){
+          //integrator() will return the integrator (which we are not interested in) and recompile/update
+          // the project for XCode (which we want)
+          //When None is returned, that probably means that user has errors in the code.
+          //Info about that has been already logged by integrator() method, so ignore it.
+          //(It is very unlikely that this happened because of suddenly broken state, and even if so, we don't care)
+          CommandLock.synchronized(integrator(state))
+          watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
         }
         state
       }
@@ -172,6 +178,7 @@ object RobovmInterfaceBuilder {
 
     integrator(state) match {
       case None =>
+        state.log.debug("robovmIBIntegrator retrieved in scope \""+Project.extract(state).get(robovmIBScope)+"\"")
         state //already failed
       case Some(firstIntegrator) =>
         firstIntegrator.openProject()
