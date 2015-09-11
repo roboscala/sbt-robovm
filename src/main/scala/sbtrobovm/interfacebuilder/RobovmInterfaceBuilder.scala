@@ -109,21 +109,6 @@ object RobovmInterfaceBuilder {
     )
   )
 
-  /**
-   * @return Trimmed line of entered input or null if no input available
-   */
-  private def readStdInput():String = {
-    if(System.in.available() <= 0)return null
-    //Read a line of input
-    val commandSB = new java.lang.StringBuilder
-    var char:Int = 0
-    do {
-      char = System.in.read()
-      commandSB.appendCodePoint(char)
-    } while(System.in.available() > 0 && !Watched.isEnter(char))
-    commandSB.toString.trim
-  }
-
   private var integratorProxyCache:Option[IBIntegratorProxy] = null
 
   /**
@@ -154,10 +139,36 @@ object RobovmInterfaceBuilder {
     }
   }
 
+  /**
+   * Thread which watches the sources and recompiles the RoboVM project each time they change.
+   * Used state is not changed by this thread, so it is not returned back.
+   */
+  private class InterfaceBuilderCommandCompileLoop(state: =>State, shouldTerminate: =>Boolean) extends Thread("interfaceBuilder CompileLoop") {
+
+    val CommandLock = new Object
+
+    setDaemon(true)
+
+    override def run(): Unit = {
+      withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
+        var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
+        var integratorDefined = true
+        while(integratorDefined && watchResult._1){
+          CommandLock.synchronized(integrator(state)) match { //This will recompile and update the XCode project (if all goes well)
+            case Some(_) =>
+              watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
+            case None =>
+              state.log.error("robovmIBIntegrator not defined in scope \""+Project.extract(state).get(robovmIBScope)+"\"")
+              integratorDefined = false
+          }
+        }
+        state
+      }
+    }
+  }
+
   private lazy val interfaceBuilderCommand = Command.command("interfaceBuilder"){originalState =>
     var state = originalState
-    val extracted = Project.extract(state)
-    val scope = extracted.get(robovmIBScope)
 
     integrator(state) match {
       case None =>
@@ -165,62 +176,59 @@ object RobovmInterfaceBuilder {
       case Some(firstIntegrator) =>
         firstIntegrator.openProject()
 
-        /**
-         * Watches for external (std in) input.
+        var terminateIBCommand = false
+        val compileLoop = new InterfaceBuilderCommandCompileLoop(state, terminateIBCommand)
+        compileLoop.start()
+
+        /*
+         * Watches for user (std in) input using sbt's methods (supports tab completion etc.)
          * Submitting empty line exits the loop.
          * Submitting valid sbt command (= whatever can be entered into the sbt console) executes the command.
          * Submitting invalid command shows help
          *
-         * @return true if the watch loop should terminate
+         * Executing commands in both here and in the compile loop thread is synchronized on compile loop's CommandLock
+         * (This locking may not be necessary, but better safe than sorry)
          */
-        def shouldTerminate: Boolean = {
+        while(!terminateIBCommand){
           //See sbt source, BasicCommands:160 - shell
           val history = (state get BasicKeys.historyPath) getOrElse Some(new File(state.baseDir, ".history"))
           val reader = new FullReader(history, state.combinedParser)
           val line = reader.readLine("interfaceBuilder > ")
           line match {
             case None =>
-              false //No input
+              terminateIBCommand = true //Input is broken, terminate
             case Some("") =>
-              true //Terminate in this case, Enter was most likely pressed
+              terminateIBCommand = true //Terminate in this case, Enter was most likely pressed
             case Some("exit") =>
               //Exit has a special handling, because sbt will exit only after this ended,
               // so it would seem like it didn't exit at all
 
               //Enqueue real exit command
               state = state.::("exit")
-              true //And terminate this command
+              terminateIBCommand = true //And terminate this command
             case Some("interfaceBuilder") =>
               //That would be rather silly (but would work)
               println("Already in the interfaceBuilder mode")
-              false
             case Some(command) =>
               parse(command, Command.combine(state.definedCommands)(state)) match {
                 case Right(s) =>
-                  state = s() // apply found command
+                  state = compileLoop.CommandLock.synchronized(s()) // apply found command
                 case Left(errMsg) =>
                   println("Unrecognized command \""+command+"\"")
                   println("Enter empty line to terminate interfaceBuilder")
               }
-              false
           }
         }
 
-        withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
-          var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
-          var integratorDefined = true
-          while(integratorDefined && watchResult._1){
-            integrator(state) match { //This will recompile and update the XCode project (if all goes well)
-              case Some(_) =>
-                watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
-              case None =>
-                state.log.error("robovmIBIntegrator not defined in scope \""+scope+"\"")
-                state = state.fail
-                integratorDefined = false
-            }
-          }
-          state
-        } //end continuous integration
+        //Command terminated, make sure that the compile loop terminates as well
+        state.log.debug("Waiting for compile loop to finish...")
+        compileLoop.join(15000) //It should stop safely in that time
+        if(compileLoop.isAlive){
+          state.log.warn("Compile loop didn't finish in time")
+        }
+
+        state
+        //end of interfaceBuilder inner workings
     }
   }
 
