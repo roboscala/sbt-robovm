@@ -24,7 +24,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   /** It is a task, because `streams` is a task. */
   val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
   /** It is a task, because `streams` is a task. It also updates the integrator when something changes. */
-  val robovmIBIntegrator = taskKey[Option[IBIntegratorProxy]]("Retrieve InterfaceBuilder integrator")
+  val robovmIBIntegrator = taskKey[Either[String, IBIntegratorProxy]]("Retrieve InterfaceBuilder integrator")
   val robovmIBDirectory = settingKey[File]("Folder in which the InterfaceBuilder integration creates XCode files")
   val robovmIBScope = settingKey[Scope]("Scope in which IB tasks are evaluated, defaults to ThisScope")
 

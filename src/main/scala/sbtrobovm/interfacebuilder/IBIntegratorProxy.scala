@@ -16,14 +16,22 @@ import scala.util.control.NonFatal
  * and can't be compiled against.
  */
 class IBIntegratorProxy private (private val log:Logger, override val toString:String) {
-  private var instance:Object = _
+  private var instance:Object = null
+  private var failureReason:String = "IBIntegratorProxy is valid"
 
   def this(home:Home, logger:Logger, name:String, xcodeDirectory:File, debugName:String){
     this(logger, debugName)
-    instance = IBIntegratorProxy.instantiate(home, logger, name, xcodeDirectory)
+    IBIntegratorProxy.instantiate(home, logger, name, xcodeDirectory) match {
+      case Right(integrator) =>
+        instance = integrator
+      case Left(reasonFailure) =>
+        failureReason = reasonFailure
+    }
   }
 
   def isValid:Boolean = instance != null
+
+  def invalidityReason:String = failureReason
 
   private def invoke[T <: Object](method:String, types:Class[_]*)(parameters:Object*):T = {
     //println("Invoking "+method+"("+parameters.mkString(", ")+")")
@@ -105,20 +113,25 @@ object IBIntegratorProxy {
   import org.robovm.compiler.config.Config.Home
   import org.robovm.compiler.log.Logger
 
-  private def instantiate(home:Home, logger:Logger, name:String, xcodeDirectory:File): Object ={
-    if(!isAvailable)return null
-    try{
-      integratorClass.getConstructor(classOf[Home], classOf[Logger], classOf[String], classOf[File]).newInstance(home, logger, name, xcodeDirectory).asInstanceOf[Object]
-    } catch {
-      case t: Throwable =>
-        logger.error("IBIntegrationProxy: Failed to instantiate IBIntegrator: "+t)
-        null
-    }
-  }
+  private def instantiate(home:Home, logger:Logger, name:String, xcodeDirectory:File): Either[String, Object] = {
+    if(integratorClass == null) return Left("IBIntegrator class not found")
+    if(!System.getProperty("os.name").toLowerCase.contains("mac os x")) return Left("IB integration is available only on OS X")
 
-  private def isAvailable: Boolean = {
-    if(integratorClass == null || !System.getProperty("os.name").toLowerCase.contains("mac os x"))return false
-    Try(integratorClass.getDeclaredMethod("isAvailable").invoke(null).asInstanceOf[Boolean]).getOrElse(false)
+    try{
+      Right(integratorClass.getConstructor(classOf[Home], classOf[Logger], classOf[String], classOf[File]).newInstance(home, logger, name, xcodeDirectory).asInstanceOf[Object])
+    } catch {
+      case ite: InvocationTargetException =>
+        val t = ite.getCause
+        logger.debug("IBIntegrationProxy: Failed to instantiate IBIntegrator: "+t)
+        if(t.getClass.getName == "com.robovm.lm.UnlicensedException"){
+          Left(t.getMessage)
+        }else{
+          Left("Failed to instantiate IBIntegrator: "+t)
+        }
+      case t: Throwable =>
+        logger.debug("IBIntegrationProxy: Failed to instantiate IBIntegrator: "+t)
+        Left("Failed to instantiate IBIntegrator: "+t)
+    }
   }
 
 }

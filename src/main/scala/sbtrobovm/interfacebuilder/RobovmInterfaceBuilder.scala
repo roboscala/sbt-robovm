@@ -5,7 +5,6 @@ import java.util
 
 import org.robovm.compiler.config.OS
 import org.robovm.compiler.target.ios.IOSTarget
-import sbt.CommandUtil._
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
@@ -17,7 +16,7 @@ import scala.collection.mutable
 
 object RobovmInterfaceBuilder {
 
-  private val integratorProxies = new mutable.HashMap[ModuleID, Option[IBIntegratorProxy]]()
+  private val integratorProxies = new mutable.HashMap[ModuleID, Either[String, IBIntegratorProxy]]()
 
   lazy val ibIntegrationSettings = Seq(
     robovmIBDirectory := {
@@ -58,15 +57,15 @@ object RobovmInterfaceBuilder {
               result.shutDown()
             }
           })
-          integratorProxies(project) = Some(result)
+          integratorProxies(project) = Right(result)
         }else{
-          integratorProxies(project) = None
+          integratorProxies(project) = Left(result.invalidityReason)
         }
       }
 
-      val integratorProxyOpt = integratorProxies(project)
-      integratorProxyOpt.collect {
-        case result =>
+      val integratorProxyEither = integratorProxies(project)
+      integratorProxyEither match {
+        case Right(ibProxy) =>
           val configuration = RobovmProjects.configTask(RobovmProjects.ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, robovmIBIntegrator.scope).value.build()
 
           //Not sure what classpath and source folders should be. robovm-idea seems to set it to compile out of the project
@@ -80,8 +79,8 @@ object RobovmInterfaceBuilder {
             }
           })
 
-          result.setClasspath(classpath)
-          result.setSourceFolders(sourceFolders)
+          ibProxy.setClasspath(classpath)
+          ibProxy.setSourceFolders(sourceFolders)
 
           val resourceFolders = new util.HashSet[File]()
           configuration.getResources.asScala.foreach(r => {
@@ -90,19 +89,19 @@ object RobovmInterfaceBuilder {
               resourceFolders.add(dir)
             }
           })
-          result.setResourceFolders(resourceFolders)
+          ibProxy.setResourceFolders(resourceFolders)
 
-          log.debug("Updated integrator proxy ("+result+") with:\n\tclasspath: "+classpath+"\n\tsourceFolders: "+sourceFolders+"\n\tresourceFolders: "+resourceFolders)
+          log.debug("Updated integrator proxy ("+ibProxy+") with:\n\tclasspath: "+classpath+"\n\tsourceFolders: "+sourceFolders+"\n\tresourceFolders: "+resourceFolders)
 
           val infoPList = configuration.getInfoPList
           if(infoPList != null && infoPList.getFile.isFile){
-            result.setInfoPlist(infoPList.getFile)
+            ibProxy.setInfoPlist(infoPList.getFile)
             log.debug("... and PList set to "+infoPList.getFile.getCanonicalPath)
           }else log.debug("... and PList not set to anything")
-
+        case _ =>
       }
 
-      integratorProxyOpt
+      integratorProxyEither
     },
     robovmIBScope := ThisScope,
     commands += RobovmInterfaceBuilder.interfaceBuilderCommand,
@@ -112,6 +111,10 @@ object RobovmInterfaceBuilder {
       createCommand("createViewController", "ViewController", "xib", (proxy, directory, name) => {proxy.newIOSViewController(name, directory)})
     )
   )
+
+  def clearIBProxyCreationFailures(): Unit ={
+    integratorProxies --= integratorProxies.filter(pair => pair._2.isLeft).keys
+  }
 
   private var integratorProxyCache:Option[IBIntegratorProxy] = null
 
@@ -126,13 +129,13 @@ object RobovmInterfaceBuilder {
     val extracted = Project.extract(state)
     val scope = extracted.get(robovmIBScope)
     Project.runTask(robovmIBIntegrator in scope, state) match {
-      case Some((resultState, Value(Some(result)))) =>
+      case Some((resultState, Value(Right(result)))) =>
         state.log.debug("Retrieved robovmIBIntegrator with scope \""+scope+"\": "+result+" ("+integratorProxies.size+" proxies loaded)")
         val some = Some(result)
         integratorProxyCache = some
         some
-      case Some((resultState, Value(None))) =>
-        resultState.log.error("interfaceBuilder not supported on this platform or in this distribution")
+      case Some((resultState, Value(Left(reason)))) =>
+        resultState.log.error("interfaceBuilder not available: "+reason)
         None
       case Some((resultState, Inc(cause))) =>
         //This in most cases mean that some of the dependant tasks failed.
@@ -156,20 +159,30 @@ object RobovmInterfaceBuilder {
 
     setDaemon(true)
 
+    val PollInterval = 500 //ms
+
     override def run(): Unit = {
-      withAttribute(state, Watched.Configuration, "Continuous execution not configured.") { w =>
-        var watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, WatchState.empty)(shouldTerminate)
-        while(watchResult._1){
-          //integrator() will return the integrator (which we are not interested in) and recompile/update
-          // the project for XCode (which we want)
-          //When None is returned, that probably means that user has errors in the code.
-          //Info about that has been already logged by integrator() method, so ignore it.
-          //(It is very unlikely that this happened because of suddenly broken state, and even if so, we don't care)
-          CommandLock.synchronized(integrator(state))
-          watchResult = SourceModificationWatch.watch(w.watchPaths(state), w.pollInterval, watchResult._2)(shouldTerminate)
-        }
-        state
+      Project.runTask(unmanagedSources in (Compile, robovmIBScope),state) match {
+        case Some((_, Value(watchedPaths))) =>
+          state.log.debug("Watched paths:\n"+watchedPaths.map(_.getCanonicalPath).sorted.mkString("\n"))
+
+          var watchResult = SourceModificationWatch.watch(watchedPaths, PollInterval, WatchState.empty)(shouldTerminate)
+          while(watchResult._1){
+            //integrator() will return the integrator (which we are not interested in) and recompile/update
+            // the project for XCode (which we want)
+            //When None is returned, that probably means that user has errors in the code.
+            //Info about that has been already logged by integrator() method, so ignore it.
+            //(It is very unlikely that this happened because of suddenly broken state, and even if so, we don't care)
+            state.log.debug("Will reload interfaceBuilder")
+            CommandLock.synchronized(integrator(state))
+            state.log.debug("interfaceBuilder reloaded")
+            watchResult = SourceModificationWatch.watch(watchedPaths, PollInterval, watchResult._2)(shouldTerminate)
+          }
+        case cause =>
+          state.log.error("Failed to retrieve paths to watch, interfaceBuilder won't update. (runTask returned: "+cause+")")
+
       }
+      state.log.debug("interfaceBuilder daemon stopped")
     }
   }
 

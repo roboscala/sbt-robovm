@@ -13,6 +13,7 @@ import org.robovm.libimobiledevice.IDevice
 import sbt.Keys._
 import sbt._
 import sbtrobovm.RobovmPlugin._
+import sbtrobovm.interfacebuilder.RobovmInterfaceBuilder
 
 object RobovmProjects {
 
@@ -165,6 +166,7 @@ object RobovmProjects {
 
   lazy val toolSettings = Seq(
     robovmLicense := {
+      RobovmInterfaceBuilder.clearIBProxyCreationFailures()
       com.robovm.lm.LicenseManager.forkUI()
     },
     simulatorDevices := {
