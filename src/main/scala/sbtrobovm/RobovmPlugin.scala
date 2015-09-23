@@ -1,6 +1,6 @@
 package sbtrobovm
 
-import org.robovm.compiler.config.Config
+import org.robovm.compiler.config.{OS, Arch, Config}
 import sbt._
 import sbtrobovm.interfacebuilder.{RobovmInterfaceBuilder, IBIntegratorProxy}
 
@@ -19,7 +19,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmConfiguration = taskKey[Either[File,Elem]]("robovm.xml configuration")
   val robovmDebugPort = settingKey[Int]("Port on which debugger will listen (when enabled)")
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
-  val robovmTarget64bit = settingKey[Boolean]("Whether to build 64bit executables")
+  val robovmTargetArch = settingKey[Array[Arch]]("Architecture(s) targeted when building with RoboVM (scoped to each building task)")
   //Internal
   /** It is a task, because `streams` is a task. */
   val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
@@ -40,10 +40,13 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmProvisioningProfile = settingKey[Option[String]]("Specify provisioning profile to use when signing iOS code.")
   val robovmSigningIdentity = settingKey[Option[String]]("Specify signing identity to use when signing iOS code.")
   val robovmPreferredDevices = settingKey[Seq[String]]("List of iOS device ID's from which device will be chosen if multiple are detected.")
+  val robovmTarget64bit = settingKey[Boolean]("Whether to build 64bit executables, only affects default values of robovmTargetArch in iOS projects")
 
   // Native Only
   val native = taskKey[Unit]("Run as native console application")
   val nativeBuild = taskKey[Unit]("Compile and archive for distribution as native application")
+
+  val robovmTargetOS = settingKey[Option[OS]]("Operating System targeted when building with RoboVM (scoped to each building task)")
 
   /* Tools */
   val robovmLicense = taskKey[Unit]("Launch UI for entering a RoboVM license key.")
@@ -61,7 +64,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val robovmConfiguration = RobovmPlugin.robovmConfiguration
     val robovmDebugPort = RobovmPlugin.robovmDebugPort
     val robovmDebug = RobovmPlugin.robovmDebug
-    val robovmTarget64bit = RobovmPlugin.robovmTarget64bit
+    val robovmTargetArch = RobovmPlugin.robovmTargetArch
 
     /* Specific settings and tasks */
     // iOS Only
@@ -75,11 +78,14 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val robovmProvisioningProfile = RobovmPlugin.robovmProvisioningProfile
     val robovmSigningIdentity = RobovmPlugin.robovmSigningIdentity
     val robovmPreferredDevices = RobovmPlugin.robovmPreferredDevices
+    val robovmTarget64bit = RobovmPlugin.robovmTarget64bit
 
     val robovmIBScope = RobovmPlugin.robovmIBScope
     // Native Only
     val native = RobovmPlugin.native
     val nativeBuild = RobovmPlugin.nativeBuild
+
+    val robovmTargetOS = RobovmPlugin.robovmTargetOS
 
     /* Tools */
     val robovmLicense = RobovmPlugin.robovmLicense
