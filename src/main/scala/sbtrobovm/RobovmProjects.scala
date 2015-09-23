@@ -15,11 +15,13 @@ import sbt._
 import sbtrobovm.RobovmPlugin._
 import sbtrobovm.interfacebuilder.RobovmInterfaceBuilder
 
+import scala.util.{Failure, Success, Try}
+
 object RobovmProjects {
 
   type TargetType = String
 
-  def configTask(arch: Def.Initialize[Array[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
+  def configTask(arch: Array[Arch], os: OS, targetType: TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
     val log = (streams in scope).value.log
 
     val builder = new Config.Builder()
@@ -57,7 +59,7 @@ object RobovmProjects {
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
     builder.os(os)
-    builder.archs(arch.value:_*)
+    builder.archs(arch:_*)
 
     val t = target.value
     builder.installDir(t / "robovm")
@@ -244,14 +246,10 @@ object RobovmProjects {
     builder
   }
 
-  private def simulatorArchitectureSetting(scope:Scope) = Def.setting[Array[Arch]]{
-    Array(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
-  }
-
   def buildSimulatorTask(scope:Scope) = Def.task[(Config, AppCompiler)]{
     buildTask(
       configIOSTask(
-        configTask(simulatorArchitectureSetting(scope), OS.ios, IOSTarget.TYPE, skipInstall = true, scope),
+        configTask(Array(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86), OS.ios, IOSTarget.TYPE, skipInstall = true, scope),
         scope
       )
     ).value
@@ -266,15 +264,9 @@ object RobovmProjects {
     compiler.launch(launchParameters)
   }
 
-  val deviceArchitectureSetting = Def.setting[Array[Arch]]{
-    Array(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
-  }
-
-  val ipaArchitectureSetting = Def.setting[Array[Arch]]{Array(Arch.thumbv7, Arch.arm64)}
-
   private def deviceTask(scope:Scope) = Def.task[Unit]{
     val log = streams.value.log
-    val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
+    val (config, compiler) = buildTask(configIOSTask(configTask(Array(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7), OS.ios, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
 
     val launchParameters = config.getTarget.createLaunchParameters()
 
@@ -344,7 +336,7 @@ object RobovmProjects {
     simulator := simulatorTask(simulator.scope, null).value,
     simulator in Debug := simulatorTask(simulator.scope.in(Debug), null).value,
     ipa := {
-      val (_, compiler) = buildTask(configIOSTask(configTask(ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
+      val (_, compiler) = buildTask(configIOSTask(configTask(Array(Arch.thumbv7, Arch.arm64), OS.ios, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
       compiler.archive()
     },
     simulatorDevices := {
@@ -362,21 +354,31 @@ object RobovmProjects {
   val robovmTargetArchitecture = settingKey[Array[Arch]]("Architecture(s) targeted by NativeProject")
 
   private def nativeTask(scope:Scope, buildOnly:Boolean) = Def.task[Unit]{
-    val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, ConsoleTarget.TYPE, skipInstall = true, scope)).value
+    val log = streams.value.log
 
-    if(buildOnly){
-      compiler.install()
-      streams.value.log.debug("nativeBuild task finished")
-    }else{
-      val launchParameters = config.getTarget.createLaunchParameters()
-      val code = compiler.launch(launchParameters)
-      streams.value.log.debug("native task finished (exit code "+code+")")
+    Try(OS.getDefaultOS) match {
+      case Success(os) =>
+        val (config, compiler) = buildTask(configTask(robovmTargetArchitecture.value, os, ConsoleTarget.TYPE, skipInstall = true, scope)).value
+
+        if(buildOnly){
+          compiler.install()
+          log.debug("nativeBuild task finished")
+        }else{
+          val launchParameters = config.getTarget.createLaunchParameters()
+          val code = compiler.launch(launchParameters)
+          log.debug("native task finished (exit code "+code+")")
+        }
+      case Failure(exception) =>
+        log.error("Native compiling is not supported on this platform")
+        log.debug("Caused by: "+exception)
     }
   }
 
 
   lazy val nativeProjectSettings = Seq(
-    robovmTargetArchitecture := Array(Arch.getDefaultArch),
+    robovmTargetArchitecture := {
+      Try(Arch.getDefaultArch).map(Array(_)).getOrElse(Array.empty[Arch])
+    },
     native := nativeTask(native.scope, buildOnly = false).value,
     native in Debug := nativeTask(native.scope.in(Debug), buildOnly = false).value,
     nativeBuild := nativeTask(native.scope, buildOnly = true).value,
