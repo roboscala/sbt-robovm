@@ -65,7 +65,7 @@ object RobovmInterfaceBuilder {
       val integratorProxyEither = integratorProxies(project)
       integratorProxyEither match {
         case Right(ibProxy) =>
-          val configuration = RobovmProjects.configTask(RobovmPlugin.robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = true, robovmIBIntegrator.scope).value.build()
+          val configuration = RobovmProjects.configTask(RobovmPlugin.robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = true, ThisScope.in(robovmIBIntegrator.key)).value.build()
 
           //Not sure what classpath and source folders should be. robovm-idea seems to set it to compile out of the project
           val classpath = new util.ArrayList[File]()

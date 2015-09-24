@@ -21,6 +21,7 @@ object RobovmProjects {
 
   def configTask(arch: Def.Initialize[Array[Arch]], os: Def.Initialize[Option[OS]], targetType: TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
     val log = (streams in scope).value.log
+    log.debug("configTask - Configuring for scope: "+scope)
 
     val builder = new Config.Builder()
     builder.logger(robovmCompilerLogger.value)
@@ -270,7 +271,7 @@ object RobovmProjects {
 
   private def deviceTask(scope:Scope) = Def.task[Unit]{
     val log = streams.value.log
-    val (config, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in device, robovmTargetOS in scope, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
+    val (config, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in device, robovmTargetOS in scope, IOSTarget.TYPE, skipInstall = true, scope), ThisScope.in(device.key))).value
 
     val launchParameters = config.getTarget.createLaunchParameters()
 
@@ -331,23 +332,23 @@ object RobovmProjects {
     robovmPreferredDevices := Nil,
     lastUsedDeviceFile := target.value / "LastUsediOSDevice.txt",
 
-    device := deviceTask(device.scope).value,
-    device in Debug := deviceTask(device.scope.in(Debug)).value,
+    device := deviceTask(ThisScope.in(device.key)).value,
+    device in Debug := deviceTask(ThisScope.in(device.key).in(Debug)).value,
     robovmTargetArch in device := Array(if((robovmTarget64bit in device).value) Arch.arm64 else Arch.thumbv7),
 
     //TODO Allow specifying SDK version and device version in simulator tasks?
-    iphoneSim := simulatorTask(iphoneSim.scope, DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
-    iphoneSim in Debug := simulatorTask(iphoneSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
-    ipadSim := simulatorTask(ipadSim.scope, DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
-    ipadSim in Debug := simulatorTask(ipadSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
-    simulator := simulatorTask(simulator.scope, null).value,
-    simulator in Debug := simulatorTask(simulator.scope.in(Debug), null).value,
+    iphoneSim := simulatorTask(ThisScope.in(iphoneSim.key), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
+    iphoneSim in Debug := simulatorTask(ThisScope.in(iphoneSim.key).in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
+    ipadSim := simulatorTask(ThisScope.in(ipadSim.key), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
+    ipadSim in Debug := simulatorTask(ThisScope.in(ipadSim.key).in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
+    simulator := simulatorTask(ThisScope.in(simulator.key), null).value,
+    simulator in Debug := simulatorTask(ThisScope.in(simulator.key).in(Debug), null).value,
     robovmTargetArch in simulator := Array(if((robovmTarget64bit in simulator).value) Arch.x86_64 else Arch.x86),
 
     robovmTarget64bit := false,
 
     ipa := {
-      val (_, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
+      val (_, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = false, ThisScope.in(ipa.key)), ThisScope.in(ipa.key))).value
       compiler.archive()
     },
    robovmTargetOS := Some(OS.ios),
@@ -401,10 +402,10 @@ object RobovmProjects {
           None
       }
     },
-    native := nativeTask(native.scope, buildOnly = false).value,
-    native in Debug := nativeTask(native.scope.in(Debug), buildOnly = false).value,
-    nativeBuild := nativeTask(native.scope, buildOnly = true).value,
-    nativeBuild in Debug := nativeTask(native.scope.in(Debug), buildOnly = true).value
+    native := nativeTask(ThisScope.in(native.key), buildOnly = false).value,
+    native in Debug := nativeTask(ThisScope.in(native.key).in(Debug), buildOnly = false).value,
+    nativeBuild := nativeTask(ThisScope.in(native.key), buildOnly = true).value,
+    nativeBuild in Debug := nativeTask(ThisScope.in(native.key).in(Debug), buildOnly = true).value
   )
     
   //endregion
