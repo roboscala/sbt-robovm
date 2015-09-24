@@ -19,7 +19,7 @@ object RobovmProjects {
 
   type TargetType = String
 
-  def configTask(arch: Def.Initialize[Array[Arch]], os: => OS, targetType: => TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
+  def configTask(arch: Def.Initialize[Array[Arch]], os: Def.Initialize[Option[OS]], targetType: TargetType, skipInstall: Boolean, scope:Scope) = Def.task[Config.Builder] {
     val log = (streams in scope).value.log
 
     val builder = new Config.Builder()
@@ -56,7 +56,13 @@ object RobovmProjects {
     //To make sure that options were not overrided, that would not work.
     builder.skipInstall(skipInstall)
     builder.targetType(targetType)
-    builder.os(os)
+    os.value match {
+      case Some(selectedOS) =>
+        builder.os(selectedOS)
+        log.debug("Setting OS to "+selectedOS)
+      case None =>
+        log.debug("OS not specified")
+    }
     builder.archs(arch.value:_*)
 
     val t = target.value
@@ -244,14 +250,10 @@ object RobovmProjects {
     builder
   }
 
-  private def simulatorArchitectureSetting(scope:Scope) = Def.setting[Array[Arch]]{
-    Array(if((robovmTarget64bit in scope).value)Arch.x86_64 else Arch.x86)
-  }
-
   def buildSimulatorTask(scope:Scope) = Def.task[(Config, AppCompiler)]{
     buildTask(
       configIOSTask(
-        configTask(simulatorArchitectureSetting(scope), OS.ios, IOSTarget.TYPE, skipInstall = true, scope),
+        configTask(robovmTargetArch in simulator, robovmTargetOS in scope, IOSTarget.TYPE, skipInstall = true, scope),
         scope
       )
     ).value
@@ -266,15 +268,9 @@ object RobovmProjects {
     compiler.launch(launchParameters)
   }
 
-  val deviceArchitectureSetting = Def.setting[Array[Arch]]{
-    Array(if((robovmTarget64bit in device).value)Arch.arm64 else Arch.thumbv7)
-  }
-
-  val ipaArchitectureSetting = Def.setting[Array[Arch]]{Array(Arch.thumbv7, Arch.arm64)}
-
   private def deviceTask(scope:Scope) = Def.task[Unit]{
     val log = streams.value.log
-    val (config, compiler) = buildTask(configIOSTask(configTask(deviceArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
+    val (config, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in device, robovmTargetOS in scope, IOSTarget.TYPE, skipInstall = true, scope), device.scope)).value
 
     val launchParameters = config.getTarget.createLaunchParameters()
 
@@ -334,8 +330,11 @@ object RobovmProjects {
     robovmSigningIdentity := None,
     robovmPreferredDevices := Nil,
     lastUsedDeviceFile := target.value / "LastUsediOSDevice.txt",
+
     device := deviceTask(device.scope).value,
     device in Debug := deviceTask(device.scope.in(Debug)).value,
+    robovmTargetArch in device := Array(if((robovmTarget64bit in device).value) Arch.arm64 else Arch.thumbv7),
+
     //TODO Allow specifying SDK version and device version in simulator tasks?
     iphoneSim := simulatorTask(iphoneSim.scope, DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
     iphoneSim in Debug := simulatorTask(iphoneSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPhone)).value,
@@ -343,10 +342,16 @@ object RobovmProjects {
     ipadSim in Debug := simulatorTask(ipadSim.scope.in(Debug), DeviceType.getBestDeviceType(DeviceType.DeviceFamily.iPad)).value,
     simulator := simulatorTask(simulator.scope, null).value,
     simulator in Debug := simulatorTask(simulator.scope.in(Debug), null).value,
+    robovmTargetArch in simulator := Array(if((robovmTarget64bit in simulator).value) Arch.x86_64 else Arch.x86),
+
+    robovmTarget64bit := false,
+
     ipa := {
-      val (_, compiler) = buildTask(configIOSTask(configTask(ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
+      val (_, compiler) = buildTask(configIOSTask(configTask(robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = false, ipa.scope), ipa.scope)).value
       compiler.archive()
     },
+   robovmTargetOS := Some(OS.ios),
+   robovmTargetArch in ipa := Array(Arch.thumbv7, Arch.arm64),
     simulatorDevices := {
       val devices = DeviceType.getSimpleDeviceTypeIds
       for (simpleDevice <- scala.collection.convert.wrapAsScala.iterableAsScalaIterable(devices)) {
@@ -359,24 +364,43 @@ object RobovmProjects {
 
   //region Native
 
-  val robovmTargetArchitecture = settingKey[Array[Arch]]("Architecture(s) targeted by NativeProject")
-
   private def nativeTask(scope:Scope, buildOnly:Boolean) = Def.task[Unit]{
-    val (config, compiler) = buildTask(configTask(robovmTargetArchitecture, OS.getDefaultOS, ConsoleTarget.TYPE, skipInstall = true, scope)).value
+    val log = streams.value.log
 
-    if(buildOnly){
+    val (config, compiler) = buildTask(configTask(robovmTargetArch in scope, robovmTargetOS in scope, ConsoleTarget.TYPE, skipInstall = true, scope)).value
+
+    if(config.getOs == null){
+      log.error("Native compiling is not supported on this platform")
+    }else if(buildOnly){
       compiler.install()
-      streams.value.log.debug("nativeBuild task finished")
+      log.debug("nativeBuild task finished")
     }else{
       val launchParameters = config.getTarget.createLaunchParameters()
       val code = compiler.launch(launchParameters)
-      streams.value.log.debug("native task finished (exit code "+code+")")
+      log.debug("native task finished (exit code "+code+")")
     }
   }
 
 
   lazy val nativeProjectSettings = Seq(
-    robovmTargetArchitecture := Array(Arch.getDefaultArch),
+    robovmTargetArch := {
+      try {
+        Array(Arch.getDefaultArch)
+      }catch{
+        case _:Throwable =>
+          //getDefaultArch May throw java.lang.UnsatisfiedLinkError, which is not caught by scala.util.Try
+          Array.empty[Arch]
+      }
+    },
+    robovmTargetOS := {
+      try {
+        Some(OS.getDefaultOS)
+      }catch{
+        case _:Throwable =>
+          //getDefaultOS May throw java.lang.UnsatisfiedLinkError, which is not caught by scala.util.Try
+          None
+      }
+    },
     native := nativeTask(native.scope, buildOnly = false).value,
     native in Debug := nativeTask(native.scope.in(Debug), buildOnly = false).value,
     nativeBuild := nativeTask(native.scope, buildOnly = true).value,
