@@ -20,6 +20,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmDebugPort = settingKey[Int]("Port on which debugger will listen (when enabled)")
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
   val robovmTargetArch = settingKey[Array[Arch]]("Architecture(s) targeted when building with RoboVM (scoped to each building task)")
+  val robovmValidateConfig = settingKey[Boolean]("Flag to enable/disable RoboVM config validation, which checks and warns about common config problems")
   //Internal
   /** It is a task, because `streams` is a task. */
   val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
@@ -65,6 +66,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
     val robovmDebugPort = RobovmPlugin.robovmDebugPort
     val robovmDebug = RobovmPlugin.robovmDebug
     val robovmTargetArch = RobovmPlugin.robovmTargetArch
+    val robovmValidateConfig = RobovmPlugin.robovmValidateConfig
 
     /* Specific settings and tasks */
     // iOS Only

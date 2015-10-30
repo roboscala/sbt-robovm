@@ -96,6 +96,19 @@ object RobovmProjects {
     builder
   }
 
+  def validateConfig(config:Config, log:sbt.Logger): Unit ={
+    import scala.collection.convert.wrapAll._
+    for(res <- config.getResources){
+      if(res.getPath != null){
+        if(!res.getPath.exists())log.warn("Config Validation: Resource file \""+res.getPath.getCanonicalPath+"\" does not exist")
+      }else if(res.getDirectory != null){
+        if(!res.getDirectory.exists())log.warn("Config Validation: Resource directory \""+res.getDirectory.getCanonicalPath+"\" does not exist")
+      }else{
+        log.warn("Config Validation: Resource has neither directory nor file, this should not happen. ("+res.toString+")")
+      }
+    }
+  }
+
   def buildTask(configBuilderTask:Def.Initialize[Task[Config.Builder]]) = Def.task[(Config, AppCompiler)] {
     val st = streams.value
 
@@ -108,6 +121,7 @@ object RobovmProjects {
         st.log.debug("Failed to write LastRobovm.xml (for debug) "+e)
     }
     val config = configBuilder.build()
+    if(robovmValidateConfig.value)validateConfig(config, st.log)
 
     st.log.info("Compiling RoboVM app, this could take a while")
     val compiler = new AppCompiler(config)
@@ -148,6 +162,7 @@ object RobovmProjects {
     robovmHome := new Config.Home(new SBTRoboVMResolver(streams.value.log).resolveAndUnpackRoboVMDistArtifact(RoboVMVersion)),
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
+    robovmValidateConfig := true,
     robovmCompilerLogger := new Logger() {
 
      val log = (streams in robovmCompilerLogger).value.log
