@@ -3,13 +3,12 @@ package sbtrobovm.interfacebuilder
 import java.io.File
 import java.util
 
-import org.robovm.compiler.config.OS
 import org.robovm.compiler.target.ios.IOSTarget
 import sbt.Keys._
 import sbt._
 import sbt.complete.DefaultParsers._
 import sbtrobovm.RobovmPlugin._
-import sbtrobovm.RobovmProjects
+import sbtrobovm.{RobovmPlugin, RobovmProjects}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -66,20 +65,30 @@ object RobovmInterfaceBuilder {
       val integratorProxyEither = integratorProxies(project)
       integratorProxyEither match {
         case Right(ibProxy) =>
-          val configuration = RobovmProjects.configTask(RobovmProjects.ipaArchitectureSetting, OS.ios, IOSTarget.TYPE, skipInstall = true, robovmIBIntegrator.scope).value.build()
+          val configuration = RobovmProjects.configTask(RobovmPlugin.robovmTargetArch in ipa, robovmTargetOS in ipa, IOSTarget.TYPE, skipInstall = true, ThisScope.in(robovmIBIntegrator.key)).value.build()
 
-          //Not sure what classpath and source folders should be. robovm-idea seems to set it to compile out of the project
+          //Classpath should contain whole classpath of the project
           val classpath = new util.ArrayList[File]()
+
+          (fullClasspath in (Compile, robovmIBIntegrator)).value.foreach(f => {
+            classpath.add(f.data)
+            log.debug("IB: Added file to classpath: "+f.data.getCanonicalPath)
+          })
+
+          ibProxy.setClasspath(classpath)
+
+          //Source folders should contain part of classpath from compiling user classes
           val sourceFolders = new util.HashSet[File]()
 
           (exportedProducts in (Compile, robovmIBIntegrator)).value.foreach(f => {
             if(f.data.isDirectory){
-              classpath.add(f.data)
               sourceFolders.add(f.data)
+              log.debug("IB: Added directory to source folders: "+f.data.getCanonicalPath)
+            }else{
+              log.debug("IB: Did not add to source folders (not a directory): "+f.data.getCanonicalPath)
             }
           })
 
-          ibProxy.setClasspath(classpath)
           ibProxy.setSourceFolders(sourceFolders)
 
           val resourceFolders = new util.HashSet[File]()
@@ -87,17 +96,20 @@ object RobovmInterfaceBuilder {
             val dir = r.getDirectory
             if(dir.isDirectory){
               resourceFolders.add(dir)
+              log.debug("IB: Added directory to resource folders: "+dir.getCanonicalPath)
+            }else{
+              log.debug("IB: Did not add to resource folders (not a directory): "+dir.getCanonicalPath)
             }
           })
           ibProxy.setResourceFolders(resourceFolders)
 
-          log.debug("Updated integrator proxy ("+ibProxy+") with:\n\tclasspath: "+classpath+"\n\tsourceFolders: "+sourceFolders+"\n\tresourceFolders: "+resourceFolders)
-
           val infoPList = configuration.getInfoPList
           if(infoPList != null && infoPList.getFile.isFile){
             ibProxy.setInfoPlist(infoPList.getFile)
-            log.debug("... and PList set to "+infoPList.getFile.getCanonicalPath)
-          }else log.debug("... and PList not set to anything")
+            log.debug("IB: Set info Plist to: "+infoPList.getFile.getCanonicalPath)
+          }else log.debug("IB: Info plist not set")
+
+          log.debug("IB: Updated integrator proxy ("+ibProxy+")")
         case _ =>
       }
 
