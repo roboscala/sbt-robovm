@@ -21,6 +21,7 @@ object RobovmPlugin extends AutoPlugin with RobovmUtils {
   val robovmDebug = settingKey[Boolean]("Whether to enable robovm debugger (Needs commercial license, run robovmLicense task to enter one)")
   val robovmTargetArch = settingKey[Array[Arch]]("Architecture(s) targeted when building with RoboVM (scoped to each building task)")
   val robovmValidateConfig = settingKey[Boolean]("Flag to enable/disable RoboVM config validation, which checks and warns about common config problems")
+  val robovmBitcode = settingKey[Boolean]("Flag to enable/disable bitcode generation")
   //Internal
   /** It is a task, because `streams` is a task. */
   val robovmCompilerLogger = taskKey[org.robovm.compiler.log.Logger]("Logger supplied to the RoboVM compiler")
