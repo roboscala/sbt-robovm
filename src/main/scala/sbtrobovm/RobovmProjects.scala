@@ -93,6 +93,8 @@ object RobovmProjects {
       }
     }
 
+    builder.enableBitcode((robovmBitcode in scope).value)
+
     builder
   }
 
@@ -163,6 +165,7 @@ object RobovmProjects {
     robovmInputJars := (fullClasspath in Compile).value map (_.data),
     robovmVerbose := false,
     robovmValidateConfig := true,
+    robovmBitcode := true,
     robovmCompilerLogger := new Logger() {
 
      val log = (streams in robovmCompilerLogger).value.log
