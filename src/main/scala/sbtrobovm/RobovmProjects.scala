@@ -279,7 +279,7 @@ object RobovmProjects {
   }
 
   def runSimulator(config:Config,compiler:AppCompiler, device:DeviceType):Int = {
-    val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[IOSSimulatorLaunchParameters]
+    val launchParameters = config.getTarget.createLaunchParameters().asInstanceOf[SimulatorLaunchParameters]
     launchParameters.setDeviceType(device)
 
     //TODO Stdout and stderr fifos
@@ -294,7 +294,7 @@ object RobovmProjects {
     val launchParameters = config.getTarget.createLaunchParameters()
 
     launchParameters match {
-      case iLP: IOSDeviceLaunchParameters =>
+      case iLP: DeviceLaunchParameters =>
         val prefDevices = robovmPreferredDevices.value
         val lastUsedIDFile = lastUsedDeviceFile.value
         val devices = IDevice.listUdids()
@@ -324,7 +324,7 @@ object RobovmProjects {
           }
         }//Don't do anything if no devices detected, maybe launcher will be luckier
       case _ =>
-        log.debug("Launch parameters are not IOSDeviceLaunchParameters")
+        log.debug("Launch parameters are not DeviceLaunchParameters")
     }
 
     val code = compiler.launch(launchParameters)
