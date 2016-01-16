@@ -11,7 +11,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 ## Add the Plugin
 
-First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.11.0")`
+First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.12.0")`
 into the `project/plugins.sbt` file. _The file name (not extension) may actually be different, but such is the convention._
 The plugin's version is in sync with the RoboVM version it uses, so it should always be clear which RoboVM is being used.
 
@@ -198,7 +198,7 @@ and in the project/plugins.sbt of your (testing) project, instead of standard in
 // Necessary only when testing with RoboVM snapshot build, such as 1.11.1-SNAPSHOT
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.11.0-YOUR_SUFFIX" changing())
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.12.0-YOUR_SUFFIX" changing())
 ```
 
 Unless you need to use the SNAPSHOT version of RoboVM, it is easier to work with stable version, because for SNAPSHOT dependencies, sbt has to check for new version each run, which adds latency to testing.
