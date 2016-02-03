@@ -11,7 +11,7 @@ sbt-robovm is a plugin for the Scala build tool that aims to make it as simple a
 
 ## Add the Plugin
 
-First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.12.0")`
+First, add the plugin to your project by appending `addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.13.0")`
 into the `project/plugins.sbt` file. _The file name (not extension) may actually be different, but such is the convention._
 The plugin's version is in sync with the RoboVM version it uses, so it should always be clear which RoboVM is being used.
 
@@ -59,7 +59,7 @@ There are different tasks defined for iOS and native console projects.
 	* Connecting the input to interactive apps is not implemented. Recommended workaround is to execute compiled binary (in target/robovm/) in separate Terminal window.
 * `nativeBuild`
 	* Same as `native`, but does not execute the binary.
-	
+
 ## Settings
 
 As with tasks, there are some settings that are only meaningful in iOS projects. Some settings are actually implemented as tasks.
@@ -119,7 +119,7 @@ As with tasks, there are some settings that are only meaningful in iOS projects.
 * `robovmIBScope` _Scope_
     * Scope in which `interfaceBuilder` command operates. Defaults to `ThisScope`.
     * Only reason to change this is if you have a custom configuration
-	
+
 ## Debugging _(licensed only)_
 
 Line numbers will be enabled automatically when the license is entered (see `robovmLicense` task).
@@ -198,7 +198,7 @@ and in the project/plugins.sbt of your (testing) project, instead of standard in
 // Necessary only when testing with RoboVM snapshot build, such as 1.11.1-SNAPSHOT
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.12.0-YOUR_SUFFIX" changing())
+addSbtPlugin("org.roboscala" % "sbt-robovm" % "1.13.0-YOUR_SUFFIX" changing())
 ```
 
 Unless you need to use the SNAPSHOT version of RoboVM, it is easier to work with stable version, because for SNAPSHOT dependencies, sbt has to check for new version each run, which adds latency to testing.
