@@ -4,13 +4,13 @@ lazy val sbtRoboVM = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   settings(
     name := "sbt-robovm",
-    roboVMVersion := "1.12.0",
+    roboVMVersion := "1.14.0",
     licenses += ("BSD 3-Clause", url("http://opensource.org/licenses/BSD-3-Clause")),
-    organization := "org.roboscala",
-    version := roboVMVersion.value,
+    organization := "com.hevylight",
+    version := roboVMVersion.value + ".0",
     sbtPlugin := true,
     publishMavenStyle := false,
-    bintrayOrganization := None,
+    bintrayOrganization := Some("hevylight"),
     bintrayRepository := "sbt-plugins",
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xfatal-warnings"),
     javacOptions ++= Seq("-source", "6", "-target", "6"),
